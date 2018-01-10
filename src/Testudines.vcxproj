@@ -121,6 +121,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="http.cpp" />
     <ClCompile Include="IOCPConnection.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="os.cpp" />
@@ -131,6 +132,7 @@
     <ClCompile Include="socket_win.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="http.h" />
     <ClInclude Include="IOCPConnection.h" />
     <ClInclude Include="os.h" />
     <ClInclude Include="os_linux.h" />

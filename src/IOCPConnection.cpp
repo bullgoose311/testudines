@@ -1,3 +1,4 @@
+// #include "http.h" // Coming soon...
 #include "IOCPConnection.h"
 
 #include <mswsock.h> // AcceptEx
@@ -42,7 +43,7 @@ bool IOCPConnection::Initialize(ConnectionId_t connectionId, SOCKET listenSocket
 
 	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
 	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
-	It lets a socket descriptor be reused for a new connection via a special call to TransmitFile. This means that a server that deals
+	It lets a socket descriptor be reused for a new connection via a special call to DisconnectEx. This means that a server that deals
 	with many short-lived connections can utilize a pool of allocated sockets without incurring the cost of creating new descriptors all
 	the time. */
 	m_socket = WSASocketW(PF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
@@ -92,7 +93,7 @@ void IOCPConnection::IssueAccept()
 	bool succeeded = AcceptEx(m_listenSocket, m_socket, m_addrBlock, 0, ACCEPT_ADDR_LENGTH, ACCEPT_ADDR_LENGTH, &bytesReceived, this);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
-		// TODO: Error handling
+		// TODO: This connection is in a bad state, what do we do?
 		LogError("AcceptEx failed", WSAGetLastError());
 	}
 }
@@ -108,8 +109,8 @@ void IOCPConnection::CompleteAccept()
 	int result = setsockopt(m_socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&m_listenSocket, sizeof(SOCKET));
 	if (result == SOCKET_ERROR)
 	{
-		// TODO: Error handling
 		LogError("setsockopt failed");
+		IssueReset();
 		return;
 	}
 
@@ -129,8 +130,8 @@ void IOCPConnection::IssueRecv()
 	int result = WSARecv(m_socket, &wsabuf, 1, &bytesReceived, &flags, (OVERLAPPED*)this, NULL);
 	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 	{
-		// TODO: Error handling
 		LogError("WSARecv failed", WSAGetLastError());
+		IssueReset();
 	}
 }
 
@@ -147,8 +148,7 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 		return;
 	}
 
-	// TODO: How to handle multiple messages?  Here we'd need to queue the message as we parse it
-
+	// TODO: Allow the passing of multiple messages instead of assuming we'll only get a single message before responding
 	if ((m_currentMessageSize + bytesReceived) >= MAX_MESSAGE_BUFFER_SIZE)
 	{
 		LogError("we've reached the max message buffer size, resetting connection");
@@ -156,12 +156,12 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 		return;
 	}
 	
-	// TODO: Properly handle null termination here
-	memcpy(m_messageBuffer + m_currentMessageSize, m_socketBuffer, bytesReceived);
+	strncat_s(m_messageBuffer + m_currentMessageSize, MAX_MESSAGE_BUFFER_SIZE - m_currentMessageSize, m_socketBuffer, bytesReceived);
 	m_currentMessageSize += bytesReceived;
-
 	if (m_messageBuffer[m_currentMessageSize - 1] == '\n')
 	{
+		// TODO: Queue the message for processing via an HTTP worker thread instead of just echoing the message back
+		// HTTP_Queue_Request(m_messageBuffer);
 		IssueSend();
 	}
 	else
@@ -183,8 +183,8 @@ void IOCPConnection::IssueSend()
 	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
 	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 	{
-		// TODO: Error handling
 		LogError("WSASend failed", WSAGetLastError());
+		IssueReset();
 	}
 }
 
@@ -208,8 +208,8 @@ void IOCPConnection::IssueReset()
 	int result = WSAIoctl(m_socket, SIO_GET_EXTENSION_FUNCTION_POINTER, &disconnectExGuid, sizeof(disconnectExGuid), &pDisconnectEx, sizeof(pDisconnectEx), &bytes, NULL, NULL);
 	if (result != 0)
 	{
-		// TODO: Error handling
-		LogError("failed to load DisconnectEx extension", result);
+		// TODO: This connection is in a bad state, what do we do?
+		LogError("failed to load DisconnectEx extension, this connection is now useless", result);
 		return;
 	}
 
@@ -217,7 +217,7 @@ void IOCPConnection::IssueReset()
 	bool succeeded = pDisconnectEx(m_socket, this, TF_REUSE_SOCKET, 0);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
-		// TODO: Error handling
+		// TODO: This connection is in a bad state, what do we do?
 		LogError("DisconnectEx failed", WSAGetLastError());
 	}
 }

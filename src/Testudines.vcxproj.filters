@@ -7,6 +7,9 @@
     <Filter Include="sockets">
       <UniqueIdentifier>{a4abd58d-fdf7-4e56-8452-64b392828d88}</UniqueIdentifier>
     </Filter>
+    <Filter Include="http">
+      <UniqueIdentifier>{5cd32917-1269-4359-b66d-2e69764ff658}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="os.cpp">
@@ -31,6 +34,9 @@
     <ClCompile Include="IOCPConnection.cpp">
       <Filter>sockets</Filter>
     </ClCompile>
+    <ClCompile Include="http.cpp">
+      <Filter>http</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -53,6 +59,9 @@
     </ClInclude>
     <ClInclude Include="IOCPConnection.h">
       <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="http.h">
+      <Filter>http</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
