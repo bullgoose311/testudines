@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="os">
+      <UniqueIdentifier>{8e5987c7-e42c-4538-98b2-fb2d0f2f32d9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sockets">
+      <UniqueIdentifier>{a4abd58d-fdf7-4e56-8452-64b392828d88}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="os.cpp">
+      <Filter>os</Filter>
+    </ClCompile>
+    <ClCompile Include="os_linux.cpp">
+      <Filter>os</Filter>
+    </ClCompile>
+    <ClCompile Include="os_win.cpp">
+      <Filter>os</Filter>
+    </ClCompile>
+    <ClCompile Include="socket.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="socket_linux.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="socket_win.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="IOCPConnection.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="os.h">
+      <Filter>os</Filter>
+    </ClInclude>
+    <ClInclude Include="os_linux.h">
+      <Filter>os</Filter>
+    </ClInclude>
+    <ClInclude Include="os_win.h">
+      <Filter>os</Filter>
+    </ClInclude>
+    <ClInclude Include="socket.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_linux.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_win.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPConnection.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
