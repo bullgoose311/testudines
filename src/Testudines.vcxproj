@@ -124,10 +124,8 @@
     <ClCompile Include="http.cpp" />
     <ClCompile Include="IOCPConnection.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="os.cpp" />
     <ClCompile Include="os_linux.cpp" />
     <ClCompile Include="os_win.cpp" />
-    <ClCompile Include="socket.cpp" />
     <ClCompile Include="socket_linux.cpp" />
     <ClCompile Include="socket_win.cpp" />
   </ItemGroup>
@@ -135,11 +133,7 @@
     <ClInclude Include="http.h" />
     <ClInclude Include="IOCPConnection.h" />
     <ClInclude Include="os.h" />
-    <ClInclude Include="os_linux.h" />
-    <ClInclude Include="os_win.h" />
     <ClInclude Include="socket.h" />
-    <ClInclude Include="socket_linux.h" />
-    <ClInclude Include="socket_win.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,6 +1,6 @@
 #ifdef _win64
 
-#include "os_win.h"
+#include "os.h"
 
 #include <iostream> // getch
 #include <windows.h>
@@ -10,7 +10,7 @@ extern bool g_shutDownRequested;
 
 BOOL WINAPI CtrlHandler(DWORD dwEvent);
 
-bool OS_Platform_Init()
+bool OS_Init()
 {
 	if (!SetConsoleCtrlHandler(CtrlHandler, true))
 	{
@@ -21,7 +21,7 @@ bool OS_Platform_Init()
 	return true;
 }
 
-void OS_Platform_Shutdown()
+void OS_Shutdown()
 {
 	if (!SetConsoleCtrlHandler(CtrlHandler, false))
 	{

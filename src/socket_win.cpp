@@ -5,7 +5,7 @@
 
 #ifdef _win64
 
-#include "socket_win.h"
+#include "socket.h"
 #include "IOCPConnection.h"
 
 #include <ws2tcpip.h>
@@ -30,7 +30,7 @@ static DWORD				s_threadCount;
 static HANDLE				s_hIOCP = INVALID_HANDLE_VALUE;
 static IOCPConnection		s_connections[MAX_CONCURRENT_CONNECTIONS];
 
-bool Sockets_Platform_Init()
+bool Sockets_Init()
 {
 	// Initialize WSA
 	WSADATA s_wsaData;
@@ -150,7 +150,7 @@ bool Sockets_Platform_Init()
 	return true;
 }
 
-void Sockets_Platform_Shutdown()
+void Sockets_Shutdown()
 {
 	Cleanup();
 }

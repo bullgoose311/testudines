@@ -12,17 +12,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="os.cpp">
-      <Filter>os</Filter>
-    </ClCompile>
     <ClCompile Include="os_linux.cpp">
       <Filter>os</Filter>
     </ClCompile>
     <ClCompile Include="os_win.cpp">
       <Filter>os</Filter>
-    </ClCompile>
-    <ClCompile Include="socket.cpp">
-      <Filter>sockets</Filter>
     </ClCompile>
     <ClCompile Include="socket_linux.cpp">
       <Filter>sockets</Filter>
@@ -42,19 +36,7 @@
     <ClInclude Include="os.h">
       <Filter>os</Filter>
     </ClInclude>
-    <ClInclude Include="os_linux.h">
-      <Filter>os</Filter>
-    </ClInclude>
-    <ClInclude Include="os_win.h">
-      <Filter>os</Filter>
-    </ClInclude>
     <ClInclude Include="socket.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_linux.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="socket_win.h">
       <Filter>sockets</Filter>
     </ClInclude>
     <ClInclude Include="IOCPConnection.h">

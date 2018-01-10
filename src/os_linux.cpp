@@ -1,15 +1,14 @@
 #ifdef __linux__
 
-#include "os_linux.h"
+#include "os.h"
 
-bool OS_Platform_Init()
+bool OS_Init()
 {
 	return true;
 }
 
-void OS_Platform_Shutdown()
+void OS_Shutdown()
 {
-
 }
 
 #endif
