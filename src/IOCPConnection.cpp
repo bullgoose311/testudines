@@ -1,10 +1,14 @@
-// #include "http.h" // Coming soon...
+#include "common_defines.h"
+#include "http.h"
 #include "IOCPConnection.h"
 
 #include <mswsock.h> // AcceptEx
 #include <stdio.h> // sprintf
 
 #pragma comment(lib,"mswsock")
+
+static const char MESSAGE_DELIMITER[] = "\r\n"; // This is delimiter used by our test app putty
+static const int MESSAGE_DELIMITER_SIZE = sizeof(MESSAGE_DELIMITER) / sizeof(*MESSAGE_DELIMITER);
 
 IOCPConnection::~IOCPConnection()
 {
@@ -16,7 +20,7 @@ IOCPConnection::~IOCPConnection()
 	closesocket(m_socket);
 }
 
-bool IOCPConnection::Initialize(ConnectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP)
+bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP)
 {
 	char msg[256];
 	sprintf_s(msg, "Initializing connection %d", connectionId);
@@ -141,51 +145,77 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 	sprintf_s(msg, "COMPLETE RECV (%d bytes): %s", (int)bytesReceived, m_socketBuffer);
 	LogInfo(msg);
 
-	// The client has closed the connection
 	if (bytesReceived == 0)
 	{
+		// The client has closed the connection
 		IssueReset();
 		return;
 	}
 
-	// TODO: Allow the passing of multiple messages instead of assuming we'll only get a single message before responding
-	if ((m_currentMessageSize + bytesReceived) >= MAX_MESSAGE_BUFFER_SIZE)
+	if ((m_currentMessageSize + bytesReceived) >= MAX_MESSAGE_SIZE)
 	{
 		LogError("we've reached the max message buffer size, resetting connection");
 		IssueReset();
 		return;
 	}
 	
-	strncat_s(m_messageBuffer + m_currentMessageSize, MAX_MESSAGE_BUFFER_SIZE - m_currentMessageSize, m_socketBuffer, bytesReceived);
-	m_currentMessageSize += bytesReceived;
-	if (m_messageBuffer[m_currentMessageSize - 1] == '\n')
+	bool messageComplete = false;
+	for (int i = 0; i < bytesReceived; i++)
 	{
-		// TODO: Queue the message for processing via an HTTP worker thread instead of just echoing the message back
-		// HTTP_Queue_Request(m_messageBuffer);
-		IssueSend();
+		bool eof = true;
+		for (int j = 0; j < MESSAGE_DELIMITER_SIZE; j++)
+		{
+			if (m_socketBuffer[i + j] != MESSAGE_DELIMITER[j])
+			{
+				eof = false;
+				break;
+			}
+		}
+
+		if (eof)
+		{
+			// TODO: Decouple the connection from HTTP using a more abstract message interface
+			if (!HTTP_QueueRequest(m_connectionId, m_messageBuffer, m_currentMessageSize))
+			{
+				LogError("Unable to queue request");
+			}
+
+			messageComplete = true;
+			break;
+		}
+		else
+		{
+			m_messageBuffer[m_currentMessageSize] = m_socketBuffer[i];
+			m_currentMessageSize++;
+		}
 	}
-	else
+
+	ZeroMemory(m_socketBuffer, bytesReceived);
+
+	if (!messageComplete)
 	{
-		ZeroMemory(m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
 		IssueRecv();
 	}
 }
 
-void IOCPConnection::IssueSend()
+bool IOCPConnection::IssueSend(char* response, messageSize_t responseSize)
 {
 	LogInfo("ISSUE SEND");
 
 	m_state = ConnectionState_e::WAIT_SEND;
 	WSABUF wsabuf;
-	wsabuf.buf = m_messageBuffer;
-	wsabuf.len = (DWORD)m_currentMessageSize;
+	// TODO: Why can't this be a const char*?????
+	wsabuf.buf = response;
+	wsabuf.len = (DWORD)responseSize;
 	DWORD bytesSent = 0;
 	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
 	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 	{
 		LogError("WSASend failed", WSAGetLastError());
-		IssueReset();
+		return false;
 	}
+
+	return true;
 }
 
 void IOCPConnection::CompleteSend()
@@ -193,7 +223,8 @@ void IOCPConnection::CompleteSend()
 	LogInfo("COMPLETE SEND");
 
 	ZeroMemory(m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
-	ZeroMemory(m_messageBuffer, MAX_MESSAGE_BUFFER_SIZE);
+	ZeroMemory(m_messageBuffer, MAX_MESSAGE_SIZE);
+	m_currentMessageSize = 0;
 
 	IssueRecv();
 }
@@ -233,7 +264,7 @@ void IOCPConnection::CompleteReset()
 void IOCPConnection::ClearBuffers()
 {
 	ZeroMemory(&m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
-	ZeroMemory(&m_messageBuffer, MAX_MESSAGE_BUFFER_SIZE);
+	ZeroMemory(&m_messageBuffer, MAX_MESSAGE_SIZE);
 	ZeroMemory(&m_addrBlock, ACCEPT_ADDR_LENGTH * 2);
 	m_currentMessageSize = 0;
 }

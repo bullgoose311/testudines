@@ -13,16 +13,16 @@
 
 #pragma comment(lib,"ws2_32")   // Standard socket API
 
-#define MAX_WORKER_THREADS 16 // This is max threads, not necessarily how many we'll have
-#define MAX_CONCURRENT_CONNECTIONS 64
+#define MAX_WORKER_THREADS			16
+#define MAX_CONCURRENT_CONNECTIONS	64
 
 static const char* DEFAULT_PORT = "51983";
 
-DWORD WINAPI WorkerThread(LPVOID WorkContext);
-void LogInfo(const char* msg);
-void LogError(const char* msg);
-void LogError(const char* msg, int errorCode);
-void Cleanup();
+static DWORD WINAPI WorkerThread(LPVOID WorkContext);
+static void LogInfo(const char* msg);
+static void LogError(const char* msg);
+static void LogError(const char* msg, int errorCode);
+static void Cleanup();
 
 static SOCKET				s_listenSocket = INVALID_SOCKET;
 static HANDLE				s_hThreads[MAX_WORKER_THREADS];
@@ -57,6 +57,10 @@ bool Sockets_Init()
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo(&systemInfo);
 	s_threadCount = systemInfo.dwNumberOfProcessors * 2;
+	if (s_threadCount > MAX_WORKER_THREADS)
+	{
+		s_threadCount = MAX_WORKER_THREADS;
+	}
 	for (DWORD dwCpu = 0; dwCpu < s_threadCount; dwCpu++)
 	{
 		HANDLE hThread = INVALID_HANDLE_VALUE;
@@ -144,6 +148,20 @@ bool Sockets_Init()
 			LogError("Failed to initialize connection");
 			Cleanup();
 			return false;
+		}
+	}
+
+	return true;
+}
+
+bool Sockets_QueueOutgoingMessage(connectionId_t connectionId, char* message, messageSize_t messageSize)
+{
+	for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
+	{
+		if (s_connections[i].GetConnectionId() == connectionId)
+		{
+			s_connections[i].IssueSend(message, messageSize);
+			break;
 		}
 	}
 

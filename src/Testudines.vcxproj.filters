@@ -28,7 +28,7 @@
     <ClCompile Include="IOCPConnection.cpp">
       <Filter>sockets</Filter>
     </ClCompile>
-    <ClCompile Include="http.cpp">
+    <ClCompile Include="http_win.cpp">
       <Filter>http</Filter>
     </ClCompile>
   </ItemGroup>
@@ -42,8 +42,10 @@
     <ClInclude Include="IOCPConnection.h">
       <Filter>sockets</Filter>
     </ClInclude>
+    <ClInclude Include="common_defines.h" />
     <ClInclude Include="http.h">
       <Filter>http</Filter>
     </ClInclude>
+    <ClInclude Include="common_types.h" />
   </ItemGroup>
 </Project>
