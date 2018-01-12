@@ -10,6 +10,12 @@
     <Filter Include="http">
       <UniqueIdentifier>{5cd32917-1269-4359-b66d-2e69764ff658}</UniqueIdentifier>
     </Filter>
+    <Filter Include="messages">
+      <UniqueIdentifier>{0fdc0197-9c0a-43bc-a4a1-2e0097590cc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="threads">
+      <UniqueIdentifier>{497ec43b-fa02-4a46-a958-cddcdf9571e6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="os_linux.cpp">
@@ -31,6 +37,9 @@
     <ClCompile Include="http_win.cpp">
       <Filter>http</Filter>
     </ClCompile>
+    <ClCompile Include="message_queue.cpp">
+      <Filter>messages</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -47,5 +56,11 @@
       <Filter>http</Filter>
     </ClInclude>
     <ClInclude Include="common_types.h" />
+    <ClInclude Include="message_queue.h">
+      <Filter>messages</Filter>
+    </ClInclude>
+    <ClInclude Include="thread_utils.h">
+      <Filter>threads</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

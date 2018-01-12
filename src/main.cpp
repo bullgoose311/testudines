@@ -1,4 +1,5 @@
 #include "http.h"
+#include "message_queue.h"
 #include "os.h"
 #include "socket.h"
 
@@ -6,6 +7,8 @@
 #include <Windows.h> // Sleep
 
 bool g_shutDownRequested;
+MessageQueue incomingMessageQueue;
+MessageQueue* g_incomingMessageQueue = &incomingMessageQueue;
 
 int main(char *argv[], int argc)
 {

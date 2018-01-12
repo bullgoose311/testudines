@@ -1,55 +1,29 @@
 #include "http.h"
 
 #include "common_defines.h"
+#include "message_queue.h"
 #include "socket.h"
+#include "thread_utils.h"
 
 #include <stdio.h>		// printf
 #include <windows.h>	// critical section
 
 #define MAX_WORKER_THREADS				16
 #define MAX_REQUEST_QUEUE_CAPACITY		1024
-#define SCOPED_CRITICAL_SECTION			ScopedCriticalSection crit;
 
-static CRITICAL_SECTION		s_criticalSection;
-struct ScopedCriticalSection
-{
-	ScopedCriticalSection()
-	{
-		EnterCriticalSection(&s_criticalSection);
-	}
+extern MessageQueue* g_incomingMessageQueue;
 
-	~ScopedCriticalSection()
-	{
-		LeaveCriticalSection(&s_criticalSection);
-	}
-};
+static const timeout_t QUEUE_TIMEOUT = 1000;
 
-struct httpRequest_s
-{
-	connectionId_t	connectionId;
-	char			request[MAX_MESSAGE_SIZE];
-	messageSize_t	requestSize;
-};
-
-static httpRequest_s	s_requestQueue[MAX_REQUEST_QUEUE_CAPACITY];
-static size_t			s_currentQueueSize = 0;
-static size_t			s_queueFront = 0;
-static size_t			s_queueBack = MAX_REQUEST_QUEUE_CAPACITY - 1;
 static HANDLE			s_hThreads[MAX_WORKER_THREADS];
 static DWORD			s_threadCount;
 
 static DWORD WINAPI WorkerThread(LPVOID WorkContext);
-static bool IsQueueFull();
-static bool IsQueueEmpty();
-static httpRequest_s* DequeueRequest();
 static void LogError(const char* msg);
 static void Cleanup();
 
 bool HTTP_Init()
 {
-	// Initialize critical section
-	InitializeCriticalSection(&s_criticalSection);
-
 	// Initialize thread pool
 	for (int i = 0; i < MAX_WORKER_THREADS; i++)
 	{
@@ -83,24 +57,6 @@ bool HTTP_Init()
 	return true;
 }
 
-bool HTTP_QueueRequest(connectionId_t connectionId, const char* httpRequest, httpRequestSize_t requestSize)
-{
-	SCOPED_CRITICAL_SECTION;
-
-	if (IsQueueFull())
-	{
-		return false;
-	}
-
-	s_queueBack = (s_queueBack + 1) % MAX_REQUEST_QUEUE_CAPACITY;
-	s_requestQueue[s_queueBack].connectionId = connectionId;
-	s_requestQueue[s_queueBack].requestSize = requestSize;
-	strncpy_s(s_requestQueue[s_queueBack].request, httpRequest, requestSize);
-	s_currentQueueSize++;
-
-	return true;
-}
-
 void HTTP_Shutdown()
 {
 	Cleanup();
@@ -111,7 +67,7 @@ DWORD WINAPI WorkerThread(LPVOID context)
 	while (true)
 	{
 		// TODO: Make this a semaphore
-		httpRequest_s* pHttpRequest = DequeueRequest();
+		const message_s* pHttpRequest = g_incomingMessageQueue->dequeue(QUEUE_TIMEOUT);
 		if (!pHttpRequest)
 		{
 			Sleep(100);
@@ -120,8 +76,8 @@ DWORD WINAPI WorkerThread(LPVOID context)
 
 		// For now we're just a simple echo server, so echo the message plus a \r\n
 		char response[MAX_MESSAGE_SIZE];
-		sprintf_s(response, "%s\r\n", pHttpRequest->request);
-		size_t responseSize = pHttpRequest->requestSize + 2;
+		sprintf_s(response, "%s\r\n", pHttpRequest->contents);
+		size_t responseSize = pHttpRequest->length + 2;
 
 		// TODO: Decouple HTTP from sockets via a more abstract message queue interface
 		if (!Sockets_QueueOutgoingMessage( pHttpRequest->connectionId, response, responseSize))
@@ -129,39 +85,9 @@ DWORD WINAPI WorkerThread(LPVOID context)
 			// TODO: What to do here...
 			LogError("Unable to queue outgoing message");
 		}
-
-		pHttpRequest->connectionId = INVALID_CONNECTION_ID;
-		ZeroMemory(pHttpRequest->request, MAX_MESSAGE_SIZE);
-		pHttpRequest->requestSize = 0;
 	}
 
 	return 0;
-}
-
-bool IsQueueFull()
-{
-	return s_currentQueueSize == MAX_REQUEST_QUEUE_CAPACITY;
-}
-
-bool IsQueueEmpty()
-{
-	return s_currentQueueSize == 0;
-}
-
-httpRequest_s* DequeueRequest()
-{
-	SCOPED_CRITICAL_SECTION;
-
-	if (IsQueueEmpty())
-	{
-		return nullptr;
-	}
-
-	httpRequest_s* pHttpRequest = &s_requestQueue[s_queueFront];
-	s_queueFront = (s_queueFront + 1) % MAX_REQUEST_QUEUE_CAPACITY;
-	s_currentQueueSize--;
-
-	return pHttpRequest;
 }
 
 void LogError(const char* msg)

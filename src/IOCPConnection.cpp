@@ -1,14 +1,17 @@
 #include "common_defines.h"
-#include "http.h"
 #include "IOCPConnection.h"
+#include "message_queue.h"
 
 #include <mswsock.h> // AcceptEx
 #include <stdio.h> // sprintf
 
 #pragma comment(lib,"mswsock")
 
-static const char MESSAGE_DELIMITER[] = "\r\n"; // This is delimiter used by our test app putty
-static const int MESSAGE_DELIMITER_SIZE = sizeof(MESSAGE_DELIMITER) / sizeof(*MESSAGE_DELIMITER);
+extern MessageQueue* g_incomingMessageQueue;
+
+static const char MESSAGE_DELIMITER[]		= "\r\n"; // This is delimiter used by our test app putty
+static const int MESSAGE_DELIMITER_SIZE		= sizeof(MESSAGE_DELIMITER) / sizeof(*MESSAGE_DELIMITER);
+static const timeout_t QUEUE_TIMEOUT		= 1000;
 
 IOCPConnection::~IOCPConnection()
 {
@@ -175,7 +178,7 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 		if (eof)
 		{
 			// TODO: Decouple the connection from HTTP using a more abstract message interface
-			if (!HTTP_QueueRequest(m_connectionId, m_messageBuffer, m_currentMessageSize))
+			if (!g_incomingMessageQueue->enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT))
 			{
 				LogError("Unable to queue request");
 			}
