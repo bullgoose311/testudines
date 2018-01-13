@@ -6,7 +6,9 @@
 #ifdef _win64
 
 #include "socket.h"
+
 #include "IOCPConnection.h"
+#include "message_queue.h"
 
 #include <ws2tcpip.h>
 #include <stdio.h>
@@ -16,19 +18,24 @@
 #define MAX_WORKER_THREADS			16
 #define MAX_CONCURRENT_CONNECTIONS	64
 
-static const char* DEFAULT_PORT = "51983";
+extern MessageQueue* g_outgoingMessageQueue;
 
-static DWORD WINAPI WorkerThread(LPVOID WorkContext);
+static const char* DEFAULT_PORT					= "51983";
+static const connectionId_t QUIT_CONNECTION_ID	= -1;
+
+static DWORD WINAPI ConnectionWorkerThread(LPVOID context);
+static DWORD WINAPI MessageQueueWorkerThread(LPVOID context);
 static void LogInfo(const char* msg);
 static void LogError(const char* msg);
 static void LogError(const char* msg, int errorCode);
 static void Cleanup();
 
 static SOCKET				s_listenSocket = INVALID_SOCKET;
-static HANDLE				s_hThreads[MAX_WORKER_THREADS];
-static DWORD				s_threadCount;
+static HANDLE				s_hConnectionThreads[MAX_WORKER_THREADS];
+static DWORD				s_hConnectionThreadCount;
 static HANDLE				s_hIOCP = INVALID_HANDLE_VALUE;
 static IOCPConnection		s_connections[MAX_CONCURRENT_CONNECTIONS];
+static HANDLE				s_hMessageQueueThread;
 
 bool Sockets_Init()
 {
@@ -49,23 +56,23 @@ bool Sockets_Init()
 		return false;
 	}
 
-	// Initialize thread pool
+	// Initialize connection thread pool
 	for (int i = 0; i < MAX_WORKER_THREADS; i++)
 	{
-		s_hThreads[i] = INVALID_HANDLE_VALUE;
+		s_hConnectionThreads[i] = INVALID_HANDLE_VALUE;
 	}
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo(&systemInfo);
-	s_threadCount = systemInfo.dwNumberOfProcessors * 2;
-	if (s_threadCount > MAX_WORKER_THREADS)
+	s_hConnectionThreadCount = systemInfo.dwNumberOfProcessors * 2;
+	if (s_hConnectionThreadCount > MAX_WORKER_THREADS)
 	{
-		s_threadCount = MAX_WORKER_THREADS;
+		s_hConnectionThreadCount = MAX_WORKER_THREADS;
 	}
-	for (DWORD dwCpu = 0; dwCpu < s_threadCount; dwCpu++)
+	for (DWORD dwCpu = 0; dwCpu < s_hConnectionThreadCount; dwCpu++)
 	{
 		HANDLE hThread = INVALID_HANDLE_VALUE;
 		DWORD dwThreadId = 0; // We're just tossing this, should we use it elsewhere?
-		hThread = CreateThread(NULL, 0, WorkerThread, s_hIOCP, 0, &dwThreadId);
+		hThread = CreateThread(NULL, 0, ConnectionWorkerThread, s_hIOCP, 0, &dwThreadId);
 		if (hThread == NULL)
 		{
 			LogError("Failed to create thread");
@@ -73,8 +80,18 @@ bool Sockets_Init()
 			return false;
 		}
 
-		s_hThreads[dwCpu] = hThread;
+		s_hConnectionThreads[dwCpu] = hThread;
 		hThread = INVALID_HANDLE_VALUE;
+	}
+
+	// Initialize message queue thread
+	DWORD threadId;
+	s_hMessageQueueThread = CreateThread(NULL, 0, MessageQueueWorkerThread, nullptr, 0, &threadId);
+	if (s_hMessageQueueThread == NULL)
+	{
+		LogError("Failed to create message queue worker thread");
+		Cleanup();
+		return false;
 	}
 
 	// Create listen socket
@@ -154,20 +171,6 @@ bool Sockets_Init()
 	return true;
 }
 
-bool Sockets_QueueOutgoingMessage(connectionId_t connectionId, char* message, messageSize_t messageSize)
-{
-	for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
-	{
-		if (s_connections[i].GetConnectionId() == connectionId)
-		{
-			s_connections[i].IssueSend(message, messageSize);
-			break;
-		}
-	}
-
-	return true;
-}
-
 void Sockets_Shutdown()
 {
 	Cleanup();
@@ -175,30 +178,37 @@ void Sockets_Shutdown()
 
 void Cleanup()
 {
-	for (size_t i = 0; i < s_threadCount; i++)
+	// Stop connection worker threads
+	for (size_t i = 0; i < s_hConnectionThreadCount; i++)
 	{
 		PostQueuedCompletionStatus(s_hIOCP, 0, COMPLETION_KEY_SHUTDOWN, 0);
 	}
-
-	LogInfo("Waiting for threads to terminate...");
-	WaitForMultipleObjects(s_threadCount, s_hThreads, TRUE, INFINITE);
-
-	for (size_t i = 0; i < s_threadCount; i++)
+	LogInfo("Waiting for connection threads to terminate...");
+	WaitForMultipleObjects(s_hConnectionThreadCount, s_hConnectionThreads, TRUE, INFINITE);
+	for (size_t i = 0; i < s_hConnectionThreadCount; i++)
 	{
-		CloseHandle(s_hThreads[i]);
+		CloseHandle(s_hConnectionThreads[i]);
 	}
 
+	// Stop message queue thread
+	g_outgoingMessageQueue->enqueue(QUIT_CONNECTION_ID, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+	LogInfo("Waiting for message queue thread to terminate...");
+	WaitForSingleObject(s_hMessageQueueThread, INFINITE);
+	CloseHandle(s_hMessageQueueThread);
+
+	// Close listen socket
 	shutdown(s_listenSocket, SD_BOTH);
 	closesocket(s_listenSocket);
 	
+	// Close IOCP
 	CloseHandle(s_hIOCP);
 
 	WSACleanup();
 }
 
-DWORD WINAPI WorkerThread(LPVOID pWorkerThreadContext)
+DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 {
-	HANDLE hIOCP = (HANDLE)pWorkerThreadContext;
+	HANDLE hIOCP = (HANDLE)context;
 	
 	while (true)
 	{
@@ -243,7 +253,7 @@ DWORD WINAPI WorkerThread(LPVOID pWorkerThreadContext)
 			{
 				// Allow the thread to terminate
 				ZeroMemory(msg, 256);
-				sprintf_s(msg, "Thread %d shutting down", GetCurrentThreadId());
+				sprintf_s(msg, "Connection thread %d shutting down", GetCurrentThreadId());
 				LogInfo(msg);
 				break;
 			}
@@ -277,6 +287,39 @@ DWORD WINAPI WorkerThread(LPVOID pWorkerThreadContext)
 
 				// TODO: Error handling, we need to exit the program here
 
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
+{
+	while (true)
+	{
+		message_s message;
+		// TODO: Use semaphore here
+		if (!g_outgoingMessageQueue->dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE))
+		{
+			Sleep(100);
+			continue;
+		}
+		
+		if (message.connectionId == QUIT_CONNECTION_ID)
+		{
+			char msg[256] = { 0 };
+			sprintf_s(msg, "Message queue thread %d shutting down", GetCurrentThreadId());
+			LogInfo(msg);
+			break;
+		}
+
+		for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
+		{
+			if (s_connections[i].GetConnectionId() == message.connectionId)
+			{
+				s_connections[i].IssueSend(message.contents, message.length);
 				break;
 			}
 		}

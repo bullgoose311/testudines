@@ -30,7 +30,7 @@ public:
 	bool Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP);
 	connectionId_t GetConnectionId() { return m_connectionId; }
 	void OnIocpCompletionPacket(DWORD bytesTransferred);
-	bool IssueSend(char* response, messageSize_t responseSize);
+	bool IssueSend(const char* response, messageSize_t responseSize);
 	void IssueReset();
 
 private:

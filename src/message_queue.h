@@ -6,6 +6,8 @@
 
 #define MESSAGE_QUEUE_CAPACITY	256
 
+const timeout_t MESSAGE_QUEUE_TIMEOUT_INFINITE = 0;
+
 struct message_s
 {
 	char			contents[MAX_MESSAGE_SIZE];
@@ -19,7 +21,7 @@ public:
 	MessageQueue();
 
 	bool enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout);
-	const message_s* const dequeue(timeout_t timeout);
+	bool dequeue(message_s& message, timeout_t timeout);
 
 private:
 	message_s	m_messages[MESSAGE_QUEUE_CAPACITY];

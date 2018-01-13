@@ -12,11 +12,12 @@
 #define MAX_REQUEST_QUEUE_CAPACITY		1024
 
 extern MessageQueue* g_incomingMessageQueue;
+extern MessageQueue* g_outgoingMessageQueue;
 
 static const timeout_t QUEUE_TIMEOUT = 1000;
 
-static HANDLE			s_hThreads[MAX_WORKER_THREADS];
-static DWORD			s_threadCount;
+static HANDLE			s_hConnectionThreads[MAX_WORKER_THREADS];
+static DWORD			s_hConnectionThreadCount;
 
 static DWORD WINAPI WorkerThread(LPVOID WorkContext);
 static void LogError(const char* msg);
@@ -27,16 +28,16 @@ bool HTTP_Init()
 	// Initialize thread pool
 	for (int i = 0; i < MAX_WORKER_THREADS; i++)
 	{
-		s_hThreads[i] = INVALID_HANDLE_VALUE;
+		s_hConnectionThreads[i] = INVALID_HANDLE_VALUE;
 	}
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo(&systemInfo);
-	s_threadCount = systemInfo.dwNumberOfProcessors * 2;
-	if (s_threadCount > MAX_WORKER_THREADS)
+	s_hConnectionThreadCount = systemInfo.dwNumberOfProcessors * 2;
+	if (s_hConnectionThreadCount > MAX_WORKER_THREADS)
 	{
-		s_threadCount = MAX_WORKER_THREADS;
+		s_hConnectionThreadCount = MAX_WORKER_THREADS;
 	}
-	for (DWORD dwCpu = 0; dwCpu < s_threadCount; dwCpu++)
+	for (DWORD dwCpu = 0; dwCpu < s_hConnectionThreadCount; dwCpu++)
 	{
 		HANDLE hThread = INVALID_HANDLE_VALUE;
 		DWORD dwThreadId = 0; // We're just tossing this, should we use it elsewhere?
@@ -50,7 +51,7 @@ bool HTTP_Init()
 			return false;
 		}
 
-		s_hThreads[dwCpu] = hThread;
+		s_hConnectionThreads[dwCpu] = hThread;
 		hThread = INVALID_HANDLE_VALUE;
 	}
 
@@ -66,21 +67,19 @@ DWORD WINAPI WorkerThread(LPVOID context)
 {
 	while (true)
 	{
-		// TODO: Make this a semaphore
-		const message_s* pHttpRequest = g_incomingMessageQueue->dequeue(QUEUE_TIMEOUT);
-		if (!pHttpRequest)
+		message_s message;
+		if (!g_incomingMessageQueue->dequeue(message, QUEUE_TIMEOUT))
 		{
 			Sleep(100);
 			continue;
 		}
 
 		// For now we're just a simple echo server, so echo the message plus a \r\n
-		char response[MAX_MESSAGE_SIZE];
-		sprintf_s(response, "%s\r\n", pHttpRequest->contents);
-		size_t responseSize = pHttpRequest->length + 2;
+		const char END_OF_MSG[] = "\r\n";
+		const size_t END_OF_MSG_SIZE = sizeof(END_OF_MSG) / sizeof(*END_OF_MSG);
+		strncat_s(message.contents, END_OF_MSG, END_OF_MSG_SIZE);
 
-		// TODO: Decouple HTTP from sockets via a more abstract message queue interface
-		if (!Sockets_QueueOutgoingMessage( pHttpRequest->connectionId, response, responseSize))
+		if (!g_outgoingMessageQueue->enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT))
 		{
 			// TODO: What to do here...
 			LogError("Unable to queue outgoing message");
@@ -97,8 +96,8 @@ void LogError(const char* msg)
 
 void Cleanup()
 {
-	for (size_t i = 0; i < s_threadCount; i++)
+	for (size_t i = 0; i < s_hConnectionThreadCount; i++)
 	{
-		CloseHandle(s_hThreads[i]);
+		CloseHandle(s_hConnectionThreads[i]);
 	}
 }

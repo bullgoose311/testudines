@@ -9,6 +9,8 @@
 bool g_shutDownRequested;
 MessageQueue incomingMessageQueue;
 MessageQueue* g_incomingMessageQueue = &incomingMessageQueue;
+MessageQueue outgoingMessageQueue;
+MessageQueue* g_outgoingMessageQueue = &outgoingMessageQueue;
 
 int main(char *argv[], int argc)
 {

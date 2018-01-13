@@ -201,14 +201,15 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 	}
 }
 
-bool IOCPConnection::IssueSend(char* response, messageSize_t responseSize)
+bool IOCPConnection::IssueSend(const char* response, messageSize_t responseSize)
 {
 	LogInfo("ISSUE SEND");
 
 	m_state = ConnectionState_e::WAIT_SEND;
+	char responseCopy[MAX_MESSAGE_SIZE];
+	strncpy_s(responseCopy, response, responseSize);
 	WSABUF wsabuf;
-	// TODO: Why can't this be a const char*?????
-	wsabuf.buf = response;
+	wsabuf.buf = responseCopy;
 	wsabuf.len = (DWORD)responseSize;
 	DWORD bytesSent = 0;
 	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
