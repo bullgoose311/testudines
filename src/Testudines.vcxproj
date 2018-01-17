@@ -127,6 +127,7 @@
     <ClCompile Include="message_queue.cpp" />
     <ClCompile Include="os_linux.cpp" />
     <ClCompile Include="os_win.cpp" />
+    <ClCompile Include="semaphore_win.cpp" />
     <ClCompile Include="socket_linux.cpp" />
     <ClCompile Include="socket_win.cpp" />
   </ItemGroup>
@@ -137,6 +138,7 @@
     <ClInclude Include="IOCPConnection.h" />
     <ClInclude Include="message_queue.h" />
     <ClInclude Include="os.h" />
+    <ClInclude Include="semaphore.h" />
     <ClInclude Include="socket.h" />
     <ClInclude Include="thread_utils.h" />
   </ItemGroup>

@@ -1,16 +1,14 @@
 #include "http.h"
 #include "message_queue.h"
 #include "os.h"
+#include "semaphore.h"
 #include "socket.h"
 
 #include <stdio.h> // printf
-#include <Windows.h> // Sleep
 
-bool g_shutDownRequested;
-MessageQueue incomingMessageQueue;
-MessageQueue* g_incomingMessageQueue = &incomingMessageQueue;
-MessageQueue outgoingMessageQueue;
-MessageQueue* g_outgoingMessageQueue = &outgoingMessageQueue;
+MessageQueue	g_incomingMessageQueue;
+MessageQueue	g_outgoingMessageQueue;
+Semaphore		g_shutdownSemaphore;
 
 int main(char *argv[], int argc)
 {
@@ -29,15 +27,9 @@ int main(char *argv[], int argc)
 		return 1;
 	}
 
-	g_shutDownRequested = false;
-
 	printf("Application is running, press ctrl-c to quit...\n");
 
-	// TODO: Move this to a semaphore
-	while (!g_shutDownRequested)
-	{
-		Sleep(100);
-	}
+	g_shutdownSemaphore.Wait();
 
 	HTTP_Shutdown();
 

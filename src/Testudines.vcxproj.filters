@@ -40,6 +40,9 @@
     <ClCompile Include="message_queue.cpp">
       <Filter>messages</Filter>
     </ClCompile>
+    <ClCompile Include="semaphore_win.cpp">
+      <Filter>threads</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -60,6 +63,9 @@
       <Filter>messages</Filter>
     </ClInclude>
     <ClInclude Include="thread_utils.h">
+      <Filter>threads</Filter>
+    </ClInclude>
+    <ClInclude Include="semaphore.h">
       <Filter>threads</Filter>
     </ClInclude>
   </ItemGroup>

@@ -18,7 +18,7 @@
 #define MAX_WORKER_THREADS			16
 #define MAX_CONCURRENT_CONNECTIONS	64
 
-extern MessageQueue* g_outgoingMessageQueue;
+extern MessageQueue g_outgoingMessageQueue;
 
 static const char* DEFAULT_PORT					= "51983";
 static const connectionId_t QUIT_CONNECTION_ID	= -1;
@@ -191,7 +191,7 @@ void Cleanup()
 	}
 
 	// Stop message queue thread
-	g_outgoingMessageQueue->enqueue(QUIT_CONNECTION_ID, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+	g_outgoingMessageQueue.enqueue(QUIT_CONNECTION_ID, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 	LogInfo("Waiting for message queue thread to terminate...");
 	WaitForSingleObject(s_hMessageQueueThread, INFINITE);
 	CloseHandle(s_hMessageQueueThread);
@@ -301,7 +301,7 @@ DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
 	{
 		message_s message;
 		// TODO: Use semaphore here
-		if (!g_outgoingMessageQueue->dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE))
+		if (!g_outgoingMessageQueue.dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE))
 		{
 			Sleep(100);
 			continue;

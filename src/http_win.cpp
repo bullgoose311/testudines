@@ -11,8 +11,8 @@
 #define MAX_WORKER_THREADS				16
 #define MAX_REQUEST_QUEUE_CAPACITY		1024
 
-extern MessageQueue* g_incomingMessageQueue;
-extern MessageQueue* g_outgoingMessageQueue;
+extern MessageQueue g_incomingMessageQueue;
+extern MessageQueue g_outgoingMessageQueue;
 
 static const timeout_t QUEUE_TIMEOUT = 1000;
 
@@ -68,7 +68,7 @@ DWORD WINAPI WorkerThread(LPVOID context)
 	while (true)
 	{
 		message_s message;
-		if (!g_incomingMessageQueue->dequeue(message, QUEUE_TIMEOUT))
+		if (!g_incomingMessageQueue.dequeue(message, QUEUE_TIMEOUT))
 		{
 			Sleep(100);
 			continue;
@@ -79,7 +79,7 @@ DWORD WINAPI WorkerThread(LPVOID context)
 		const size_t END_OF_MSG_SIZE = sizeof(END_OF_MSG) / sizeof(*END_OF_MSG);
 		strncat_s(message.contents, END_OF_MSG, END_OF_MSG_SIZE);
 
-		if (!g_outgoingMessageQueue->enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT))
+		if (!g_outgoingMessageQueue.enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT))
 		{
 			// TODO: What to do here...
 			LogError("Unable to queue outgoing message");

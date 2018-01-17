@@ -7,7 +7,7 @@
 
 #pragma comment(lib,"mswsock")
 
-extern MessageQueue* g_incomingMessageQueue;
+extern MessageQueue g_incomingMessageQueue;
 
 static const char MESSAGE_DELIMITER[]		= "\r\n"; // This is delimiter used by our test app putty
 static const int MESSAGE_DELIMITER_SIZE		= sizeof(MESSAGE_DELIMITER) / sizeof(*MESSAGE_DELIMITER);
@@ -178,7 +178,7 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 		if (eof)
 		{
 			// TODO: Decouple the connection from HTTP using a more abstract message interface
-			if (!g_incomingMessageQueue->enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT))
+			if (!g_incomingMessageQueue.enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT))
 			{
 				LogError("Unable to queue request");
 			}

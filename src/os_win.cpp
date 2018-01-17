@@ -1,12 +1,13 @@
 #ifdef _win64
 
 #include "os.h"
+#include "semaphore.h"
 
 #include <iostream> // getch
 #include <windows.h>
 #include <wincon.h>
 
-extern bool g_shutDownRequested;
+extern Semaphore g_shutdownSemaphore;
 
 BOOL WINAPI CtrlHandler(DWORD dwEvent);
 
@@ -38,7 +39,7 @@ BOOL WINAPI CtrlHandler(DWORD dwEvent)
 	{
 	case CTRL_C_EVENT:      // Falls through..
 	case CTRL_CLOSE_EVENT:
-		g_shutDownRequested = true;
+		g_shutdownSemaphore.Signal();
 		return true;
 	default:
 		return false;
