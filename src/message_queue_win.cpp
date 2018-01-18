@@ -1,3 +1,5 @@
+#ifdef _win64
+
 #include "message_queue.h"
 
 MessageQueue::MessageQueue()
@@ -49,3 +51,5 @@ void MessageQueue::dequeue(message_s& message, timeout_t timeout)
 
 	WakeConditionVariable(&m_enqueueCvar);
 }
+
+#endif // #ifdef _win64

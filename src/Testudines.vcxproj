@@ -124,7 +124,7 @@
     <ClCompile Include="http_win.cpp" />
     <ClCompile Include="IOCPConnection.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="message_queue.cpp" />
+    <ClCompile Include="message_queue_win.cpp" />
     <ClCompile Include="os_linux.cpp" />
     <ClCompile Include="os_win.cpp" />
     <ClCompile Include="semaphore_win.cpp" />

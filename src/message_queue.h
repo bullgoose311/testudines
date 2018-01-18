@@ -3,8 +3,6 @@
 #include "common_defines.h"
 #include "common_types.h"
 
-#include <windows.h>
-
 #define MESSAGE_QUEUE_CAPACITY	256
 
 const timeout_t MESSAGE_QUEUE_TIMEOUT_INFINITE = 0;
@@ -15,6 +13,10 @@ struct message_s
 	size_t			length;
 	connectionId_t	connectionId;
 };
+
+#ifdef _win64
+
+#include <windows.h>
 
 class MessageQueue
 {
@@ -36,3 +38,9 @@ private:
 	bool IsFull() { return m_queueSize == MESSAGE_QUEUE_CAPACITY; }
 	bool IsEmpty() { return m_queueSize == 0; }
 };
+
+#else
+
+	// TODO: Linux message queue interface goes here...
+
+#endif // #ifdef _win64

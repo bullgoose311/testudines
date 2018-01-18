@@ -37,11 +37,11 @@
     <ClCompile Include="http_win.cpp">
       <Filter>http</Filter>
     </ClCompile>
-    <ClCompile Include="message_queue.cpp">
-      <Filter>messages</Filter>
-    </ClCompile>
     <ClCompile Include="semaphore_win.cpp">
       <Filter>threads</Filter>
+    </ClCompile>
+    <ClCompile Include="message_queue_win.cpp">
+      <Filter>messages</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

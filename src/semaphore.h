@@ -24,6 +24,6 @@ private:
 
 #else
 
-// TODO: Linux semaphore here...
+// TODO: Linux semaphore interface goes here...
 
 #endif
