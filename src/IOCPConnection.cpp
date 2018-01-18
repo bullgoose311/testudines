@@ -1,3 +1,7 @@
+// TODO: Right now our connections can only handle a single inbound message at a time,
+// need to update the protocol and implementation to support message IDs that way as soon as the message
+// has queued the completed message, it can put itself back into the recv state and get the next message.
+
 #include "common_defines.h"
 #include "IOCPConnection.h"
 #include "message_queue.h"

@@ -7,6 +7,7 @@
 
 #include "socket.h"
 
+#include "common_utils.h"
 #include "IOCPConnection.h"
 #include "message_queue.h"
 
@@ -21,7 +22,6 @@
 extern MessageQueue g_outgoingMessageQueue;
 
 static const char* DEFAULT_PORT					= "51983";
-static const connectionId_t QUIT_CONNECTION_ID	= -1;
 
 static DWORD WINAPI ConnectionWorkerThread(LPVOID context);
 static DWORD WINAPI MessageQueueWorkerThread(LPVOID context);
@@ -31,8 +31,8 @@ static void LogError(const char* msg, int errorCode);
 static void Cleanup();
 
 static SOCKET				s_listenSocket = INVALID_SOCKET;
-static HANDLE				s_hConnectionThreads[MAX_WORKER_THREADS];
-static DWORD				s_hConnectionThreadCount;
+static HANDLE				s_httpWorkerThreadHandles[MAX_WORKER_THREADS];
+static DWORD				s_httpWorkerThreadCount;
 static HANDLE				s_hIOCP = INVALID_HANDLE_VALUE;
 static IOCPConnection		s_connections[MAX_CONCURRENT_CONNECTIONS];
 static HANDLE				s_hMessageQueueThread;
@@ -59,16 +59,16 @@ bool Sockets_Init()
 	// Initialize connection thread pool
 	for (int i = 0; i < MAX_WORKER_THREADS; i++)
 	{
-		s_hConnectionThreads[i] = INVALID_HANDLE_VALUE;
+		s_httpWorkerThreadHandles[i] = INVALID_HANDLE_VALUE;
 	}
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo(&systemInfo);
-	s_hConnectionThreadCount = systemInfo.dwNumberOfProcessors * 2;
-	if (s_hConnectionThreadCount > MAX_WORKER_THREADS)
+	s_httpWorkerThreadCount = systemInfo.dwNumberOfProcessors * 2;
+	if (s_httpWorkerThreadCount > MAX_WORKER_THREADS)
 	{
-		s_hConnectionThreadCount = MAX_WORKER_THREADS;
+		s_httpWorkerThreadCount = MAX_WORKER_THREADS;
 	}
-	for (DWORD dwCpu = 0; dwCpu < s_hConnectionThreadCount; dwCpu++)
+	for (DWORD dwCpu = 0; dwCpu < s_httpWorkerThreadCount; dwCpu++)
 	{
 		HANDLE hThread = INVALID_HANDLE_VALUE;
 		DWORD dwThreadId = 0; // We're just tossing this, should we use it elsewhere?
@@ -80,7 +80,7 @@ bool Sockets_Init()
 			return false;
 		}
 
-		s_hConnectionThreads[dwCpu] = hThread;
+		s_httpWorkerThreadHandles[dwCpu] = hThread;
 		hThread = INVALID_HANDLE_VALUE;
 	}
 
@@ -179,15 +179,15 @@ void Sockets_Shutdown()
 void Cleanup()
 {
 	// Stop connection worker threads
-	for (size_t i = 0; i < s_hConnectionThreadCount; i++)
+	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
 	{
 		PostQueuedCompletionStatus(s_hIOCP, 0, COMPLETION_KEY_SHUTDOWN, 0);
 	}
 	LogInfo("Waiting for connection threads to terminate...");
-	WaitForMultipleObjects(s_hConnectionThreadCount, s_hConnectionThreads, TRUE, INFINITE);
-	for (size_t i = 0; i < s_hConnectionThreadCount; i++)
+	WaitForMultipleObjects(s_httpWorkerThreadCount, s_httpWorkerThreadHandles, TRUE, INFINITE);
+	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
 	{
-		CloseHandle(s_hConnectionThreads[i]);
+		CloseHandle(s_httpWorkerThreadHandles[i]);
 	}
 
 	// Stop message queue thread
@@ -305,7 +305,7 @@ DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
 		if (message.connectionId == QUIT_CONNECTION_ID)
 		{
 			char msg[256] = { 0 };
-			sprintf_s(msg, "Message queue thread %d shutting down", GetCurrentThreadId());
+			sprintf_s(msg, "Socket outgoing message queue thread %d shutting down", GetCurrentThreadId());
 			LogInfo(msg);
 			break;
 		}

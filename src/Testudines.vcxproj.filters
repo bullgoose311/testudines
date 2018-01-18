@@ -68,5 +68,6 @@
     <ClInclude Include="semaphore.h">
       <Filter>threads</Filter>
     </ClInclude>
+    <ClInclude Include="common_utils.h" />
   </ItemGroup>
 </Project>

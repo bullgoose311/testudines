@@ -134,6 +134,7 @@
   <ItemGroup>
     <ClInclude Include="common_defines.h" />
     <ClInclude Include="common_types.h" />
+    <ClInclude Include="common_utils.h" />
     <ClInclude Include="http.h" />
     <ClInclude Include="IOCPConnection.h" />
     <ClInclude Include="message_queue.h" />
