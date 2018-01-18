@@ -2,7 +2,8 @@
 
 #include "common_defines.h"
 #include "common_types.h"
-#include "thread_utils.h"
+
+#include <windows.h>
 
 #define MESSAGE_QUEUE_CAPACITY	256
 
@@ -20,16 +21,18 @@ class MessageQueue
 public:
 	MessageQueue();
 
-	bool enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout);
-	bool dequeue(message_s& message, timeout_t timeout);
+	void enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout);
+	void dequeue(message_s& message, timeout_t timeout);
 
 private:
 	message_s	m_messages[MESSAGE_QUEUE_CAPACITY];
 	size_t		m_queueSize = 0;
 	size_t		m_queueFront = 0;
 	size_t		m_queueBack = MESSAGE_QUEUE_CAPACITY - 1;
+	CRITICAL_SECTION m_criticalSection;
+	CONDITION_VARIABLE m_enqueueCvar;
+	CONDITION_VARIABLE m_dequeueCvar;
 
 	bool IsFull() { return m_queueSize == MESSAGE_QUEUE_CAPACITY; }
 	bool IsEmpty() { return m_queueSize == 0; }
-	CRITICAL_SECTION m_criticalSection;
 };

@@ -177,12 +177,7 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 
 		if (eof)
 		{
-			// TODO: Decouple the connection from HTTP using a more abstract message interface
-			if (!g_incomingMessageQueue.enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT))
-			{
-				LogError("Unable to queue request");
-			}
-
+			g_incomingMessageQueue.enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT);
 			messageComplete = true;
 			break;
 		}

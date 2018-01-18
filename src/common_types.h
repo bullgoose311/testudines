@@ -1,6 +1,5 @@
 #pragma once
 
-// TODO: Where can I get an unsigned int type?
 typedef int connectionId_t;
 
 #ifdef _win64

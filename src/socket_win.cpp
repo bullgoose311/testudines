@@ -300,12 +300,7 @@ DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
 	while (true)
 	{
 		message_s message;
-		// TODO: Use semaphore here
-		if (!g_outgoingMessageQueue.dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE))
-		{
-			Sleep(100);
-			continue;
-		}
+		g_outgoingMessageQueue.dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 		
 		if (message.connectionId == QUIT_CONNECTION_ID)
 		{

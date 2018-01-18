@@ -68,22 +68,14 @@ DWORD WINAPI WorkerThread(LPVOID context)
 	while (true)
 	{
 		message_s message;
-		if (!g_incomingMessageQueue.dequeue(message, QUEUE_TIMEOUT))
-		{
-			Sleep(100);
-			continue;
-		}
+		g_incomingMessageQueue.dequeue(message, QUEUE_TIMEOUT);
 
 		// For now we're just a simple echo server, so echo the message plus a \r\n
 		const char END_OF_MSG[] = "\r\n";
 		const size_t END_OF_MSG_SIZE = sizeof(END_OF_MSG) / sizeof(*END_OF_MSG);
 		strncat_s(message.contents, END_OF_MSG, END_OF_MSG_SIZE);
 
-		if (!g_outgoingMessageQueue.enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT))
-		{
-			// TODO: What to do here...
-			LogError("Unable to queue outgoing message");
-		}
+		g_outgoingMessageQueue.enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT);
 	}
 
 	return 0;

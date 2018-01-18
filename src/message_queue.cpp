@@ -3,17 +3,17 @@
 MessageQueue::MessageQueue()
 {
 	InitializeCriticalSection(&m_criticalSection);
+	InitializeConditionVariable(&m_enqueueCvar);
+	InitializeConditionVariable(&m_dequeueCvar);
 }
 
-bool MessageQueue::enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout)
+void MessageQueue::enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout)
 {
-	// TODO: Use semaphore to block here
+	EnterCriticalSection(&m_criticalSection);
 
-	SCOPED_CRITICAL_SECTION(&m_criticalSection);
-
-	if (IsFull())
+	while (IsFull())
 	{
-		return false;
+		SleepConditionVariableCS(&m_enqueueCvar, &m_criticalSection, INFINITE);
 	}
 
 	m_queueBack = (m_queueBack + 1) % MESSAGE_QUEUE_CAPACITY;
@@ -22,18 +22,18 @@ bool MessageQueue::enqueue(connectionId_t connectionId, const char* contents, si
 	strncpy_s(m_messages[m_queueBack].contents, contents, length);
 	m_queueSize++;
 
-	return true;
+	LeaveCriticalSection(&m_criticalSection);
+
+	WakeConditionVariable(&m_dequeueCvar);
 }
 
-bool MessageQueue::dequeue(message_s& message, timeout_t timeout)
+void MessageQueue::dequeue(message_s& message, timeout_t timeout)
 {
-	// TODO: Use semaphore to block here
+	EnterCriticalSection(&m_criticalSection);
 
-	SCOPED_CRITICAL_SECTION(&m_criticalSection);
-
-	if (IsEmpty())
+	while (IsEmpty())
 	{
-		return false;
+		SleepConditionVariableCS(&m_dequeueCvar, &m_criticalSection, INFINITE);
 	}
 
 	message_s* pMessage = &m_messages[m_queueFront];
@@ -45,5 +45,7 @@ bool MessageQueue::dequeue(message_s& message, timeout_t timeout)
 	strncpy_s(message.contents, pMessage->contents, pMessage->length);
 	message.length = pMessage->length;
 
-	return pMessage;
+	LeaveCriticalSection(&m_criticalSection);
+
+	WakeConditionVariable(&m_enqueueCvar);
 }
