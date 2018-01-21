@@ -10,7 +10,7 @@ MessageQueue	g_incomingMessageQueue;
 MessageQueue	g_outgoingMessageQueue;
 Semaphore		g_shutdownSemaphore;
 
-int main(char *argv[], int argc)
+int main(int argc, char *argv[])
 {
 	if (!OS_Init())
 	{

@@ -191,7 +191,7 @@ void Cleanup()
 	}
 
 	// Stop message queue thread
-	g_outgoingMessageQueue.enqueue(QUIT_CONNECTION_ID, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+	g_outgoingMessageQueue.enqueue(QUIT_CONNECTION_ID, 0, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 	LogInfo("Waiting for message queue thread to terminate...");
 	WaitForSingleObject(s_hMessageQueueThread, INFINITE);
 	CloseHandle(s_hMessageQueueThread);
@@ -228,21 +228,11 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 			- bytes were transferred into the block pointed to by overlapped, the direction is up to us to remember by stashing data in the overlapped structure
 		*/
 
-		char msg[256];
-		sprintf_s(msg, "Thread %d BLOCKED on GetQueuedCompletionStatus", GetCurrentThreadId());
-		LogInfo(msg);
-
 		DWORD bytesTransferred = 0;
 		ULONG_PTR completionKey = COMPLETION_KEY_NONE;
 		LPOVERLAPPED pOverlapped = nullptr;
 		bool bSuccess = GetQueuedCompletionStatus(hIOCP, &bytesTransferred, &completionKey, &pOverlapped, INFINITE);
-
-		ZeroMemory(msg, 256);
-		sprintf_s(msg, "Thread %d UNBLOCKED from GetQueuedCompletionStatus", GetCurrentThreadId());
-		LogInfo(msg);
-
 		IOCPConnection* pConnection = reinterpret_cast<IOCPConnection*>(pOverlapped);
-
 		if (bSuccess)
 		{
 			if (completionKey == COMPLETION_KEY_IO)
@@ -252,7 +242,7 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 			else if (completionKey == COMPLETION_KEY_SHUTDOWN)
 			{
 				// Allow the thread to terminate
-				ZeroMemory(msg, 256);
+				char msg[256] = { 0 };
 				sprintf_s(msg, "Connection thread %d shutting down", GetCurrentThreadId());
 				LogInfo(msg);
 				break;
@@ -260,7 +250,7 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 			else
 			{
 				// Something's wrong
-				ZeroMemory(msg, 256);
+				char msg[256] = { 0 };
 				sprintf_s(msg, "Thread %d got an invalid completion key, exiting", GetCurrentThreadId());
 				LogError(msg);
 				break;
@@ -310,13 +300,25 @@ DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
 			break;
 		}
 
+		bool connectionFound = false;
 		for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
 		{
 			if (s_connections[i].GetConnectionId() == message.connectionId)
 			{
+				// TODO: If we can somehow block here when the connection is in the middle of a read or send,
+				// then the connection can immediately put itself back in the recv state after processing a read
+				// allowing the connection to accept multiple incoming messages at at ime
 				s_connections[i].IssueSend(message.contents, message.length);
+				connectionFound = true;
 				break;
 			}
+		}
+
+		if (!connectionFound)
+		{
+			char msg[256];
+			sprintf_s(msg, "Attempted to send outgoing message on non-existent connection %d", message.connectionId);
+			LogError(msg);
 		}
 	}
 

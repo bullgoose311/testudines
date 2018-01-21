@@ -14,8 +14,9 @@
 extern MessageQueue g_incomingMessageQueue;
 
 static const char MESSAGE_DELIMITER[]		= "\r\n"; // This is delimiter used by our test app putty
-static const int MESSAGE_DELIMITER_SIZE		= sizeof(MESSAGE_DELIMITER) / sizeof(*MESSAGE_DELIMITER);
+static const int MESSAGE_DELIMITER_SIZE		= 2;
 static const timeout_t QUEUE_TIMEOUT		= 1000;
+static const bool VERBOSE_LOGGING = false;
 
 IOCPConnection::~IOCPConnection()
 {
@@ -29,10 +30,6 @@ IOCPConnection::~IOCPConnection()
 
 bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP)
 {
-	char msg[256];
-	sprintf_s(msg, "Initializing connection %d", connectionId);
-	LogInfo(msg);
-
 	if (listenSocket == INVALID_SOCKET || hIOCP == INVALID_HANDLE_VALUE)
 	{
 		LogError("Invalid listen socket or IOCP handle");
@@ -50,7 +47,9 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 	OffsetHigh = 0;
 	hEvent = NULL;
 
-	ClearBuffers();
+	ClearRecvSocketBuffer();
+	ClearSendSocketBuffer();
+	ClearMessageBuffer();
 
 	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
 	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
@@ -97,7 +96,7 @@ void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 
 void IOCPConnection::IssueAccept()
 {
-	LogInfo("ISSUE ACCEPT");
+	ZeroMemory(&m_addrBlock, ACCEPT_ADDR_LENGTH * 2);
 
 	m_state = ConnectionState_e::WAIT_ACCEPT;
 	DWORD bytesReceived = 0;
@@ -130,11 +129,9 @@ void IOCPConnection::CompleteAccept()
 
 void IOCPConnection::IssueRecv()
 {
-	LogInfo("ISSUE RECV");
-
 	m_state = ConnectionState_e::WAIT_RECV;
 	WSABUF wsabuf;
-	wsabuf.buf = m_socketBuffer;
+	wsabuf.buf = m_recvSocketBuffer;
 	wsabuf.len = MAX_SOCKET_BUFFER_SIZE;
 	DWORD flags = 0;
 	DWORD bytesReceived = 0;
@@ -149,7 +146,7 @@ void IOCPConnection::IssueRecv()
 void IOCPConnection::CompleteRecv(size_t bytesReceived)
 {
 	char msg[1024];
-	sprintf_s(msg, "COMPLETE RECV (%d bytes): %s", (int)bytesReceived, m_socketBuffer);
+	sprintf_s(msg, "COMPLETE RECV (%d bytes): %s", (int)bytesReceived, m_recvSocketBuffer);
 	LogInfo(msg);
 
 	if (bytesReceived == 0)
@@ -172,7 +169,7 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 		bool eof = true;
 		for (int j = 0; j < MESSAGE_DELIMITER_SIZE; j++)
 		{
-			if (m_socketBuffer[i + j] != MESSAGE_DELIMITER[j])
+			if (m_recvSocketBuffer[i + j] != MESSAGE_DELIMITER[j])
 			{
 				eof = false;
 				break;
@@ -181,18 +178,20 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 
 		if (eof)
 		{
-			g_incomingMessageQueue.enqueue(m_connectionId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT);
+			g_incomingMessageQueue.enqueue(m_connectionId, m_requestId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT);
+			ClearMessageBuffer();
+			m_requestId++;
 			messageComplete = true;
 			break;
 		}
 		else
 		{
-			m_messageBuffer[m_currentMessageSize] = m_socketBuffer[i];
+			m_messageBuffer[m_currentMessageSize] = m_recvSocketBuffer[i];
 			m_currentMessageSize++;
 		}
 	}
 
-	ZeroMemory(m_socketBuffer, bytesReceived);
+	ClearRecvSocketBuffer();
 
 	if (!messageComplete)
 	{
@@ -202,19 +201,17 @@ void IOCPConnection::CompleteRecv(size_t bytesReceived)
 
 bool IOCPConnection::IssueSend(const char* response, messageSize_t responseSize)
 {
-	LogInfo("ISSUE SEND");
-
 	m_state = ConnectionState_e::WAIT_SEND;
-	char responseCopy[MAX_MESSAGE_SIZE];
-	strncpy_s(responseCopy, response, responseSize);
+	strncpy_s(m_sendSocketBuffer, response, responseSize);
 	WSABUF wsabuf;
-	wsabuf.buf = responseCopy;
+	wsabuf.buf = m_sendSocketBuffer;
 	wsabuf.len = (DWORD)responseSize;
 	DWORD bytesSent = 0;
 	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
 	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 	{
 		LogError("WSASend failed", WSAGetLastError());
+		IssueReset();
 		return false;
 	}
 
@@ -225,17 +222,13 @@ void IOCPConnection::CompleteSend()
 {
 	LogInfo("COMPLETE SEND");
 
-	ZeroMemory(m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
-	ZeroMemory(m_messageBuffer, MAX_MESSAGE_SIZE);
-	m_currentMessageSize = 0;
+	ClearSendSocketBuffer();
 
 	IssueRecv();
 }
 
 void IOCPConnection::IssueReset()
 {
-	LogInfo("ISSUE RESET");
-
 	LPFN_DISCONNECTEX pDisconnectEx = nullptr;
 	GUID disconnectExGuid = WSAID_DISCONNECTEX;
 	DWORD bytes = 0;
@@ -260,15 +253,28 @@ void IOCPConnection::CompleteReset()
 {
 	LogInfo("COMPLETE RESET");
 
-	ClearBuffers();
+	ClearRecvSocketBuffer();
+	ClearSendSocketBuffer();
+	ClearMessageBuffer();
+
+	m_requestId = 0;
+
 	IssueAccept();
 }
 
-void IOCPConnection::ClearBuffers()
+void IOCPConnection::ClearRecvSocketBuffer()
 {
-	ZeroMemory(&m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
+	ZeroMemory(&m_recvSocketBuffer, MAX_SOCKET_BUFFER_SIZE);
+}
+
+void IOCPConnection::ClearSendSocketBuffer()
+{
+	ZeroMemory(&m_sendSocketBuffer, MAX_SOCKET_BUFFER_SIZE);
+}
+
+void IOCPConnection::ClearMessageBuffer()
+{
 	ZeroMemory(&m_messageBuffer, MAX_MESSAGE_SIZE);
-	ZeroMemory(&m_addrBlock, ACCEPT_ADDR_LENGTH * 2);
 	m_currentMessageSize = 0;
 }
 
@@ -286,5 +292,8 @@ void IOCPConnection::LogError(const char* msg, int errorCode)
 
 void IOCPConnection::LogInfo(const char* msg)
 {
-	printf("INFO: %s\n", msg);
+	if (VERBOSE_LOGGING)
+	{
+		printf("INFO: CONNECTION %d THREAD %d - %s\n", m_connectionId, GetCurrentThreadId(), msg);
+	}
 }

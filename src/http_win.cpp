@@ -80,12 +80,11 @@ DWORD WINAPI HttpWorkerThread(LPVOID context)
 			break;
 		}
 
-		// For now we're just a simple echo server, so echo the message plus a \r\n
-		const char END_OF_MSG[] = "\r\n";
-		const size_t END_OF_MSG_SIZE = sizeof(END_OF_MSG) / sizeof(*END_OF_MSG);
-		strncat_s(message.contents, END_OF_MSG, END_OF_MSG_SIZE);
+		// For now we're just a simple echo server, so echo the message with request ID followed by EOF
+		char responseBuffer[MAX_MESSAGE_SIZE];
+		int responseMsgSize = sprintf_s(responseBuffer, "%d:%s\r\n", message.requestId, message.contents);
 
-		g_outgoingMessageQueue.enqueue(message.connectionId, message.contents, message.length + END_OF_MSG_SIZE, QUEUE_TIMEOUT);
+		g_outgoingMessageQueue.enqueue(message.connectionId, message.requestId, responseBuffer, responseMsgSize, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 	}
 
 	return 0;
@@ -105,7 +104,7 @@ void Cleanup()
 {
 	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
 	{
-		g_incomingMessageQueue.enqueue(QUIT_CONNECTION_ID, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+		g_incomingMessageQueue.enqueue(QUIT_CONNECTION_ID, 0, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 	}
 
 	LogInfo("Waiting for http worker threads to terminate...");

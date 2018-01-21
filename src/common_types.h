@@ -1,6 +1,7 @@
 #pragma once
 
-typedef int connectionId_t;
+typedef unsigned int connectionId_t;
+typedef unsigned int requestId_t;
 
 #ifdef _win64
 typedef size_t messageSize_t;

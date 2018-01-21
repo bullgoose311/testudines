@@ -9,7 +9,7 @@ MessageQueue::MessageQueue()
 	InitializeConditionVariable(&m_dequeueCvar);
 }
 
-void MessageQueue::enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout)
+void MessageQueue::enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout)
 {
 	EnterCriticalSection(&m_criticalSection);
 
@@ -20,6 +20,7 @@ void MessageQueue::enqueue(connectionId_t connectionId, const char* contents, si
 
 	m_queueBack = (m_queueBack + 1) % MESSAGE_QUEUE_CAPACITY;
 	m_messages[m_queueBack].connectionId = connectionId;
+	m_messages[m_queueBack].requestId = requestId;
 	m_messages[m_queueBack].length = length;
 	strncpy_s(m_messages[m_queueBack].contents, contents, length);
 	m_queueSize++;
@@ -44,6 +45,7 @@ void MessageQueue::dequeue(message_s& message, timeout_t timeout)
 
 	// We want to re-use this message in the queue, make a copy
 	message.connectionId = pMessage->connectionId;
+	message.requestId = pMessage->requestId;
 	strncpy_s(message.contents, pMessage->contents, pMessage->length);
 	message.length = pMessage->length;
 

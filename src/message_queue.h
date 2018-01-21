@@ -12,6 +12,7 @@ struct message_s
 	char			contents[MAX_MESSAGE_SIZE];
 	size_t			length;
 	connectionId_t	connectionId;
+	requestId_t		requestId;
 };
 
 #ifdef _win64
@@ -23,7 +24,7 @@ class MessageQueue
 public:
 	MessageQueue();
 
-	void enqueue(connectionId_t connectionId, const char* contents, size_t length, timeout_t timeout);
+	void enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout);
 	void dequeue(message_s& message, timeout_t timeout);
 
 private:
