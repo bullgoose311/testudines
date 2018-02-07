@@ -2,21 +2,24 @@
 // need to update the protocol and implementation to support message IDs that way as soon as the message
 // has queued the completed message, it can put itself back into the recv state and get the next message.
 
+/*
+	The issue is that our OVERLAPPED can only be in 1 state, so as as soon as someone issues
+	a send, it puts us into the SEND state so when IOCP returns we're in SEND regardless of whether
+	that IOCP packet was a send or recv.  We need 2 overlapped structures...
+	When the GetQueued returns, that overlapped needs to know whether that operation was a send or recv...
+	Need 2 overlapped structures, both using the same socket...
+	...instead of a connection, we need a 1-directional stream...a stream that knows if it's a send or recv...
+*/
+
 #include "common_defines.h"
 #include "IOCPConnection.h"
-#include "message_queue.h"
 
 #include <mswsock.h> // AcceptEx
 #include <stdio.h> // sprintf
 
 #pragma comment(lib,"mswsock")
 
-extern MessageQueue g_incomingMessageQueue;
-
-static const char MESSAGE_DELIMITER[]		= "\r\n"; // This is delimiter used by our test app putty
-static const int MESSAGE_DELIMITER_SIZE		= 2;
-static const timeout_t QUEUE_TIMEOUT		= 1000;
-static const bool VERBOSE_LOGGING = false;
+static const bool VERBOSE_LOGGING = true;
 
 IOCPConnection::~IOCPConnection()
 {
@@ -36,20 +39,19 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 		return false;
 	}
 
-	m_connectionId = connectionId;
-	m_listenSocket = listenSocket;
-	m_hIOCP = hIOCP;
-
-	// OVERLAPPED properties
+	// Overlapped
 	Internal = 0;
 	InternalHigh = 0;
 	Offset = 0;
 	OffsetHigh = 0;
 	hEvent = NULL;
 
-	ClearRecvSocketBuffer();
-	ClearSendSocketBuffer();
-	ClearMessageBuffer();
+	m_connectionId = connectionId;
+	m_listenSocket = listenSocket;
+	m_hIOCP = hIOCP;
+
+	m_recvPacketHandler.Initialize(m_connectionId, this);
+	m_sendPacketHandler.Initialize(m_connectionId, this);
 
 	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
 	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
@@ -76,30 +78,28 @@ void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 {
 	switch (m_state)
 	{
-	case ConnectionState_e::WAIT_ACCEPT:
+	case IOCPConnectionState_e::AWAITING_ACCEPT:
 		CompleteAccept();
 		break;
-
-	case ConnectionState_e::WAIT_RECV:
-		CompleteRecv(bytesTransferred);
-		break;
-
-	case ConnectionState_e::WAIT_SEND:
-		CompleteSend();
-		break;
-
-	case ConnectionState_e::WAIT_RESET:
+	case IOCPConnectionState_e::AWAITING_RESET:
 		CompleteReset();
 		break;
 	}
 }
 
+void IOCPConnection::Send(const char* msg, messageSize_t size)
+{
+	m_sendPacketHandler.Write(msg, size);
+}
+
 void IOCPConnection::IssueAccept()
 {
+	LogInfo("ISSUE ACCEPT");
+
 	ZeroMemory(&m_addrBlock, ACCEPT_ADDR_LENGTH * 2);
 
-	m_state = ConnectionState_e::WAIT_ACCEPT;
 	DWORD bytesReceived = 0;
+	m_state = IOCPConnectionState_e::AWAITING_ACCEPT;
 	bool succeeded = AcceptEx(m_listenSocket, m_socket, m_addrBlock, 0, ACCEPT_ADDR_LENGTH, ACCEPT_ADDR_LENGTH, &bytesReceived, this);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
@@ -120,111 +120,12 @@ void IOCPConnection::CompleteAccept()
 	if (result == SOCKET_ERROR)
 	{
 		LogError("setsockopt failed");
-		IssueReset();
+		//IssueReset();
 		return;
 	}
 
-	IssueRecv();
-}
-
-void IOCPConnection::IssueRecv()
-{
-	m_state = ConnectionState_e::WAIT_RECV;
-	WSABUF wsabuf;
-	wsabuf.buf = m_recvSocketBuffer;
-	wsabuf.len = MAX_SOCKET_BUFFER_SIZE;
-	DWORD flags = 0;
-	DWORD bytesReceived = 0;
-	int result = WSARecv(m_socket, &wsabuf, 1, &bytesReceived, &flags, (OVERLAPPED*)this, NULL);
-	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
-	{
-		LogError("WSARecv failed", WSAGetLastError());
-		IssueReset();
-	}
-}
-
-void IOCPConnection::CompleteRecv(size_t bytesReceived)
-{
-	char msg[1024];
-	sprintf_s(msg, "COMPLETE RECV (%d bytes): %s", (int)bytesReceived, m_recvSocketBuffer);
-	LogInfo(msg);
-
-	if (bytesReceived == 0)
-	{
-		// The client has closed the connection
-		IssueReset();
-		return;
-	}
-
-	if ((m_currentMessageSize + bytesReceived) >= MAX_MESSAGE_SIZE)
-	{
-		LogError("we've reached the max message buffer size, resetting connection");
-		IssueReset();
-		return;
-	}
-	
-	bool messageComplete = false;
-	for (int i = 0; i < bytesReceived; i++)
-	{
-		bool eof = true;
-		for (int j = 0; j < MESSAGE_DELIMITER_SIZE; j++)
-		{
-			if (m_recvSocketBuffer[i + j] != MESSAGE_DELIMITER[j])
-			{
-				eof = false;
-				break;
-			}
-		}
-
-		if (eof)
-		{
-			g_incomingMessageQueue.enqueue(m_connectionId, m_requestId, m_messageBuffer, m_currentMessageSize, QUEUE_TIMEOUT);
-			ClearMessageBuffer();
-			m_requestId++;
-			messageComplete = true;
-			break;
-		}
-		else
-		{
-			m_messageBuffer[m_currentMessageSize] = m_recvSocketBuffer[i];
-			m_currentMessageSize++;
-		}
-	}
-
-	ClearRecvSocketBuffer();
-
-	if (!messageComplete)
-	{
-		IssueRecv();
-	}
-}
-
-bool IOCPConnection::IssueSend(const char* response, messageSize_t responseSize)
-{
-	m_state = ConnectionState_e::WAIT_SEND;
-	strncpy_s(m_sendSocketBuffer, response, responseSize);
-	WSABUF wsabuf;
-	wsabuf.buf = m_sendSocketBuffer;
-	wsabuf.len = (DWORD)responseSize;
-	DWORD bytesSent = 0;
-	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
-	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
-	{
-		LogError("WSASend failed", WSAGetLastError());
-		IssueReset();
-		return false;
-	}
-
-	return true;
-}
-
-void IOCPConnection::CompleteSend()
-{
-	LogInfo("COMPLETE SEND");
-
-	ClearSendSocketBuffer();
-
-	IssueRecv();
+	m_recvPacketHandler.OnSocketAccept(m_socket);
+	m_sendPacketHandler.OnSocketAccept(m_socket);
 }
 
 void IOCPConnection::IssueReset()
@@ -240,7 +141,7 @@ void IOCPConnection::IssueReset()
 		return;
 	}
 
-	m_state = ConnectionState_e::WAIT_RESET;
+	m_state = IOCPConnectionState_e::AWAITING_RESET;
 	bool succeeded = pDisconnectEx(m_socket, this, TF_REUSE_SOCKET, 0);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
@@ -251,31 +152,12 @@ void IOCPConnection::IssueReset()
 
 void IOCPConnection::CompleteReset()
 {
-	LogInfo("COMPLETE RESET");
-
-	ClearRecvSocketBuffer();
-	ClearSendSocketBuffer();
-	ClearMessageBuffer();
-
-	m_requestId = 0;
-
 	IssueAccept();
 }
 
-void IOCPConnection::ClearRecvSocketBuffer()
+void IOCPConnection::OnStreamClosed()
 {
-	ZeroMemory(&m_recvSocketBuffer, MAX_SOCKET_BUFFER_SIZE);
-}
-
-void IOCPConnection::ClearSendSocketBuffer()
-{
-	ZeroMemory(&m_sendSocketBuffer, MAX_SOCKET_BUFFER_SIZE);
-}
-
-void IOCPConnection::ClearMessageBuffer()
-{
-	ZeroMemory(&m_messageBuffer, MAX_MESSAGE_SIZE);
-	m_currentMessageSize = 0;
+	IssueReset();
 }
 
 void IOCPConnection::LogError(const char* msg)

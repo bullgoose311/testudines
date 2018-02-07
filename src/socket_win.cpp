@@ -17,7 +17,7 @@
 #pragma comment(lib,"ws2_32")   // Standard socket API
 
 #define MAX_WORKER_THREADS			16
-#define MAX_CONCURRENT_CONNECTIONS	64
+#define MAX_CONCURRENT_CONNECTIONS	16
 
 extern MessageQueue g_outgoingMessageQueue;
 
@@ -232,12 +232,12 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 		ULONG_PTR completionKey = COMPLETION_KEY_NONE;
 		LPOVERLAPPED pOverlapped = nullptr;
 		bool bSuccess = GetQueuedCompletionStatus(hIOCP, &bytesTransferred, &completionKey, &pOverlapped, INFINITE);
-		IOCPConnection* pConnection = reinterpret_cast<IOCPConnection*>(pOverlapped);
+		IOCPPacketHandler* pPacketHandler = static_cast<IOCPPacketHandler*>(pOverlapped);
 		if (bSuccess)
 		{
 			if (completionKey == COMPLETION_KEY_IO)
 			{
-				pConnection->OnIocpCompletionPacket(bytesTransferred);
+				pPacketHandler->OnIocpCompletionPacket(bytesTransferred);
 			}
 			else if (completionKey == COMPLETION_KEY_SHUTDOWN)
 			{
@@ -258,7 +258,7 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 		}
 		else
 		{
-			if (pConnection)
+			if (pPacketHandler)
 			{
 				/*
 				- 0, non-null overlapped
@@ -266,7 +266,8 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 					- socket was likely forcibly closed
 				*/
 
-				pConnection->IssueReset();
+				// TODO: What to do here?
+				// pPacketHandler->IssueReset();
 			}
 			else
 			{
@@ -305,10 +306,7 @@ DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
 		{
 			if (s_connections[i].GetConnectionId() == message.connectionId)
 			{
-				// TODO: If we can somehow block here when the connection is in the middle of a read or send,
-				// then the connection can immediately put itself back in the recv state after processing a read
-				// allowing the connection to accept multiple incoming messages at at ime
-				s_connections[i].IssueSend(message.contents, message.length);
+				s_connections[i].Send(message.contents, message.length);
 				connectionFound = true;
 				break;
 			}

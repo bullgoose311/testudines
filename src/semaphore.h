@@ -2,6 +2,7 @@
 
 #ifdef _win64
 
+#define _WINSOCKAPI_ // Can't include Windows.h before winsock2.h so we do this here
 #include <windows.h>
 
 class Semaphore

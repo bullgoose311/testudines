@@ -2,10 +2,9 @@
 
 #include "common_defines.h"
 #include "common_types.h"
+#include "IOCPPacketHandler.h"
 
 #include <winsock2.h>
-
-#define MAX_SOCKET_BUFFER_SIZE 1024
 
 enum
 {
@@ -14,48 +13,41 @@ enum
 	COMPLETION_KEY_SHUTDOWN = 2
 };
 
-enum struct ConnectionState_e
+enum class IOCPConnectionState_e
 {
-	WAIT_ACCEPT,
-	WAIT_RECV,
-	WAIT_SEND,
-	WAIT_RESET
+	AWAITING_ACCEPT,
+	AWAITING_RESET
 };
 
-class IOCPConnection : public OVERLAPPED
+class IOCPConnection : public IOCPPacketHandler, IOCPStreamClosedListener
 {
 public:
+	IOCPConnection() : IOCPPacketHandler() {}
 	~IOCPConnection();
 
 	bool Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP);
+	virtual void OnIocpCompletionPacket(DWORD bytesTransferred);
+
+	virtual void OnStreamClosed() override;
+
 	connectionId_t GetConnectionId() { return m_connectionId; }
-	void OnIocpCompletionPacket(DWORD bytesTransferred);
-	bool IssueSend(const char* response, messageSize_t responseSize);
-	void IssueReset();
+	void Send(const char* response, messageSize_t responseSize);
 
 private:
 	static const int ACCEPT_ADDR_LENGTH = ((sizeof(struct sockaddr_in) + 16)); // dwLocalAddressLength[in] - The number of bytes reserved for the local address information.  This value must be at least 16 bytes more than the maximum address length for the transport protocol in use.
 
-	connectionId_t		m_connectionId = 0;
-	requestId_t			m_requestId = 0;
-	HANDLE				m_hIOCP = INVALID_HANDLE_VALUE;
-	SOCKET				m_listenSocket = INVALID_SOCKET;
-	BYTE				m_addrBlock[ACCEPT_ADDR_LENGTH * 2]; // lpOutputBuffer [in] A pointer to a buffer that receives the first block of data sent on a new connection, the local address of the server, and the remote address of the client.
-	SOCKET				m_socket = INVALID_SOCKET;
-	ConnectionState_e	m_state = ConnectionState_e::WAIT_ACCEPT;
-	char				m_recvSocketBuffer[MAX_SOCKET_BUFFER_SIZE] = { 0 };
-	char				m_sendSocketBuffer[MAX_SOCKET_BUFFER_SIZE] = { 0 };
-	char				m_messageBuffer[MAX_MESSAGE_SIZE] = { 0 };
-	size_t				m_currentMessageSize = 0;
+	connectionId_t			m_connectionId = 0;
+	HANDLE					m_hIOCP = INVALID_HANDLE_VALUE;
+	SOCKET					m_listenSocket = INVALID_SOCKET;
+	BYTE					m_addrBlock[ACCEPT_ADDR_LENGTH * 2]; // lpOutputBuffer [in] A pointer to a buffer that receives the first block of data sent on a new connection, the local address of the server, and the remote address of the client.
+	SOCKET					m_socket = INVALID_SOCKET;
+	IOCPInputStream			m_recvPacketHandler;
+	IOCPOutputStream		m_sendPacketHandler;
+	IOCPConnectionState_e	m_state;
 
-	void ClearRecvSocketBuffer();
-	void ClearSendSocketBuffer();
-	void ClearMessageBuffer();
 	void IssueAccept();
 	void CompleteAccept();
-	void IssueRecv();
-	void CompleteRecv(size_t bytesReceived);
-	void CompleteSend();
+	void IssueReset();
 	void CompleteReset();
 	void LogError(const char* msg);
 	void LogError(const char* msg, int errorCode);

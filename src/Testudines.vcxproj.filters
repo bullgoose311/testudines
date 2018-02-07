@@ -43,6 +43,9 @@
     <ClCompile Include="message_queue_win.cpp">
       <Filter>messages</Filter>
     </ClCompile>
+    <ClCompile Include="IOCPPacketHandler.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -69,5 +72,8 @@
       <Filter>threads</Filter>
     </ClInclude>
     <ClInclude Include="common_utils.h" />
+    <ClInclude Include="IOCPPacketHandler.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
