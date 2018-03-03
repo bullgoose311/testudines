@@ -50,8 +50,8 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 	m_listenSocket = listenSocket;
 	m_hIOCP = hIOCP;
 
-	m_recvPacketHandler.Initialize(m_connectionId, this);
-	m_sendPacketHandler.Initialize(m_connectionId, this);
+	m_inputStream.Initialize(m_connectionId, this);
+	m_outputStream.Initialize(m_connectionId, this);
 
 	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
 	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
@@ -87,11 +87,6 @@ void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 	}
 }
 
-void IOCPConnection::Send(const char* msg, messageSize_t size)
-{
-	m_sendPacketHandler.Write(msg, size);
-}
-
 void IOCPConnection::IssueAccept()
 {
 	LogInfo("ISSUE ACCEPT");
@@ -124,8 +119,8 @@ void IOCPConnection::CompleteAccept()
 		return;
 	}
 
-	m_recvPacketHandler.OnSocketAccept(m_socket);
-	m_sendPacketHandler.OnSocketAccept(m_socket);
+	m_inputStream.OnSocketAccept(m_socket);
+	m_outputStream.OnSocketAccept(m_socket);
 }
 
 void IOCPConnection::IssueReset()

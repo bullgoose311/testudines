@@ -7,7 +7,6 @@
 #include <stdio.h> // printf
 
 MessageQueue	g_incomingMessageQueue;
-MessageQueue	g_outgoingMessageQueue;
 Semaphore		g_shutdownSemaphore;
 
 int main(int argc, char *argv[])

@@ -6,7 +6,7 @@
 
 struct ScopedCriticalSection
 {
-	CRITICAL_SECTION* m_pCriticalSection;
+	CRITICAL_SECTION* m_pCriticalSection = nullptr;
 
 	ScopedCriticalSection(CRITICAL_SECTION* pCriticalSection)
 	{

@@ -123,7 +123,10 @@
   <ItemGroup>
     <ClCompile Include="http_win.cpp" />
     <ClCompile Include="IOCPConnection.cpp" />
+    <ClCompile Include="IOCPInputStream.cpp" />
+    <ClCompile Include="IOCPOutputStream.cpp" />
     <ClCompile Include="IOCPPacketHandler.cpp" />
+    <ClCompile Include="IOCPStream.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="message_queue_win.cpp" />
     <ClCompile Include="os_linux.cpp" />
@@ -138,7 +141,10 @@
     <ClInclude Include="common_utils.h" />
     <ClInclude Include="http.h" />
     <ClInclude Include="IOCPConnection.h" />
+    <ClInclude Include="IOCPInputStream.h" />
+    <ClInclude Include="IOCPOutputStream.h" />
     <ClInclude Include="IOCPPacketHandler.h" />
+    <ClInclude Include="IOCPStream.h" />
     <ClInclude Include="message_queue.h" />
     <ClInclude Include="os.h" />
     <ClInclude Include="semaphore.h" />

@@ -46,6 +46,15 @@
     <ClCompile Include="IOCPPacketHandler.cpp">
       <Filter>sockets</Filter>
     </ClCompile>
+    <ClCompile Include="IOCPStream.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPInputStream.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPOutputStream.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -73,6 +82,15 @@
     </ClInclude>
     <ClInclude Include="common_utils.h" />
     <ClInclude Include="IOCPPacketHandler.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPStream.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPInputStream.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPOutputStream.h">
       <Filter>sockets</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,7 +2,8 @@
 
 #include "common_defines.h"
 #include "common_types.h"
-#include "IOCPPacketHandler.h"
+#include "IOCPInputStream.h"
+#include "IOCPOutputStream.h"
 
 #include <winsock2.h>
 
@@ -19,19 +20,21 @@ enum class IOCPConnectionState_e
 	AWAITING_RESET
 };
 
-class IOCPConnection : public IOCPPacketHandler, IOCPStreamClosedListener
+class IOCPConnection : public IOCPPacketHandler, StreamClosedHandler
 {
 public:
 	IOCPConnection() : IOCPPacketHandler() {}
 	~IOCPConnection();
 
 	bool Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP);
-	virtual void OnIocpCompletionPacket(DWORD bytesTransferred);
-
-	virtual void OnStreamClosed() override;
-
 	connectionId_t GetConnectionId() { return m_connectionId; }
-	void Send(const char* response, messageSize_t responseSize);
+	IOCPOutputStream* GetOutputStream() { return &m_outputStream; }
+
+	// IOCPPacketHandler
+	virtual void OnIocpCompletionPacket(DWORD bytesTransferred) override;
+
+	// StreamClosedListener
+	virtual void OnStreamClosed() override;
 
 private:
 	static const int ACCEPT_ADDR_LENGTH = ((sizeof(struct sockaddr_in) + 16)); // dwLocalAddressLength[in] - The number of bytes reserved for the local address information.  This value must be at least 16 bytes more than the maximum address length for the transport protocol in use.
@@ -41,8 +44,8 @@ private:
 	SOCKET					m_listenSocket = INVALID_SOCKET;
 	BYTE					m_addrBlock[ACCEPT_ADDR_LENGTH * 2]; // lpOutputBuffer [in] A pointer to a buffer that receives the first block of data sent on a new connection, the local address of the server, and the remote address of the client.
 	SOCKET					m_socket = INVALID_SOCKET;
-	IOCPInputStream			m_recvPacketHandler;
-	IOCPOutputStream		m_sendPacketHandler;
+	IOCPInputStream			m_inputStream;
+	IOCPOutputStream		m_outputStream;
 	IOCPConnectionState_e	m_state;
 
 	void IssueAccept();

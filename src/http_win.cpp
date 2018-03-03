@@ -9,11 +9,10 @@
 #include <stdio.h>		// printf
 #include <windows.h>	// critical section
 
-#define MAX_WORKER_THREADS				16
+#define MAX_WORKER_THREADS				1
 #define MAX_REQUEST_QUEUE_CAPACITY		1024
 
 extern MessageQueue g_incomingMessageQueue;
-extern MessageQueue g_outgoingMessageQueue;
 
 static const timeout_t QUEUE_TIMEOUT = 1000;
 
@@ -84,7 +83,13 @@ DWORD WINAPI HttpWorkerThread(LPVOID context)
 		char responseBuffer[MAX_MESSAGE_SIZE];
 		int responseMsgSize = sprintf_s(responseBuffer, "%d:%s\r\n", message.requestId, message.contents);
 
-		g_outgoingMessageQueue.enqueue(message.connectionId, message.requestId, responseBuffer, responseMsgSize, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+		// TODO: Do we want to block the HTTP thread in the case that the outgoing message buffer is full?
+		if (!Sockets_Write(message.connectionId, responseBuffer, responseMsgSize))
+		{
+			char msg[256];
+			sprintf_s(msg, "Unable to write response for request %d on connection %d", message.requestId, message.connectionId);
+			LogError(msg);
+		}
 	}
 
 	return 0;

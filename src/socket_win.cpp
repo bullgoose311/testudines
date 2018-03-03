@@ -16,10 +16,8 @@
 
 #pragma comment(lib,"ws2_32")   // Standard socket API
 
-#define MAX_WORKER_THREADS			16
+#define MAX_WORKER_THREADS			1
 #define MAX_CONCURRENT_CONNECTIONS	16
-
-extern MessageQueue g_outgoingMessageQueue;
 
 static const char* DEFAULT_PORT					= "51983";
 
@@ -35,7 +33,6 @@ static HANDLE				s_httpWorkerThreadHandles[MAX_WORKER_THREADS];
 static DWORD				s_httpWorkerThreadCount;
 static HANDLE				s_hIOCP = INVALID_HANDLE_VALUE;
 static IOCPConnection		s_connections[MAX_CONCURRENT_CONNECTIONS];
-static HANDLE				s_hMessageQueueThread;
 
 bool Sockets_Init()
 {
@@ -82,16 +79,6 @@ bool Sockets_Init()
 
 		s_httpWorkerThreadHandles[dwCpu] = hThread;
 		hThread = INVALID_HANDLE_VALUE;
-	}
-
-	// Initialize message queue thread
-	DWORD threadId;
-	s_hMessageQueueThread = CreateThread(NULL, 0, MessageQueueWorkerThread, nullptr, 0, &threadId);
-	if (s_hMessageQueueThread == NULL)
-	{
-		LogError("Failed to create message queue worker thread");
-		Cleanup();
-		return false;
 	}
 
 	// Create listen socket
@@ -158,7 +145,7 @@ bool Sockets_Init()
 	*/
 
 	// Initialize the connections
-	for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
+	for (int i = MAX_CONCURRENT_CONNECTIONS - 1; i >= 0; --i)
 	{
 		if (!s_connections[i].Initialize(i, s_listenSocket, s_hIOCP))
 		{
@@ -169,6 +156,19 @@ bool Sockets_Init()
 	}
 
 	return true;
+}
+
+bool Sockets_Write(connectionId_t connectionId, const char* buffer, size_t size)
+{
+	for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
+	{
+		if (s_connections[i].GetConnectionId() == connectionId)
+		{
+			return s_connections[i].GetOutputStream()->Write(buffer, size);
+		}
+	}
+
+	return false;
 }
 
 void Sockets_Shutdown()
@@ -189,12 +189,6 @@ void Cleanup()
 	{
 		CloseHandle(s_httpWorkerThreadHandles[i]);
 	}
-
-	// Stop message queue thread
-	g_outgoingMessageQueue.enqueue(QUIT_CONNECTION_ID, 0, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
-	LogInfo("Waiting for message queue thread to terminate...");
-	WaitForSingleObject(s_hMessageQueueThread, INFINITE);
-	CloseHandle(s_hMessageQueueThread);
 
 	// Close listen socket
 	shutdown(s_listenSocket, SD_BOTH);
@@ -280,43 +274,6 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 
 				break;
 			}
-		}
-	}
-
-	return 0;
-}
-
-DWORD WINAPI MessageQueueWorkerThread(LPVOID context)
-{
-	while (true)
-	{
-		message_s message;
-		g_outgoingMessageQueue.dequeue(message, MESSAGE_QUEUE_TIMEOUT_INFINITE);
-		
-		if (message.connectionId == QUIT_CONNECTION_ID)
-		{
-			char msg[256] = { 0 };
-			sprintf_s(msg, "Socket outgoing message queue thread %d shutting down", GetCurrentThreadId());
-			LogInfo(msg);
-			break;
-		}
-
-		bool connectionFound = false;
-		for (int i = 0; i < MAX_CONCURRENT_CONNECTIONS; i++)
-		{
-			if (s_connections[i].GetConnectionId() == message.connectionId)
-			{
-				s_connections[i].Send(message.contents, message.length);
-				connectionFound = true;
-				break;
-			}
-		}
-
-		if (!connectionFound)
-		{
-			char msg[256];
-			sprintf_s(msg, "Attempted to send outgoing message on non-existent connection %d", message.connectionId);
-			LogError(msg);
 		}
 	}
 

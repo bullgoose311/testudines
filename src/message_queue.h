@@ -3,7 +3,7 @@
 #include "common_defines.h"
 #include "common_types.h"
 
-#define MESSAGE_QUEUE_CAPACITY	2056
+#define MESSAGE_QUEUE_CAPACITY	256
 
 const timeout_t MESSAGE_QUEUE_TIMEOUT_INFINITE = 0;
 
