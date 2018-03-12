@@ -6,8 +6,9 @@
 
 #include <stdio.h> // printf
 
-MessageQueue	g_incomingMessageQueue;
-Semaphore		g_shutdownSemaphore;
+MessageQueue		g_incomingMessageQueue;
+Semaphore			g_shutdownSemaphore;
+bool				g_verboseLogging = true;
 
 int main(int argc, char *argv[])
 {

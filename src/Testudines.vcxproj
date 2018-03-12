@@ -134,6 +134,7 @@
     <ClCompile Include="semaphore_win.cpp" />
     <ClCompile Include="socket_linux.cpp" />
     <ClCompile Include="socket_win.cpp" />
+    <ClCompile Include="socket_win_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common_defines.h" />
@@ -149,6 +150,7 @@
     <ClInclude Include="os.h" />
     <ClInclude Include="semaphore.h" />
     <ClInclude Include="socket.h" />
+    <ClInclude Include="socket_win_utils.h" />
     <ClInclude Include="thread_utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

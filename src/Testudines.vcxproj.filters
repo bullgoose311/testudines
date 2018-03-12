@@ -55,6 +55,9 @@
     <ClCompile Include="IOCPOutputStream.cpp">
       <Filter>sockets</Filter>
     </ClCompile>
+    <ClCompile Include="socket_win_utils.cpp">
+      <Filter>sockets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="os.h">
@@ -91,6 +94,9 @@
       <Filter>sockets</Filter>
     </ClInclude>
     <ClInclude Include="IOCPOutputStream.h">
+      <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="socket_win_utils.h">
       <Filter>sockets</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,13 +1,15 @@
 #include "IOCPStream.h"
 
+#include "IOCPConnection.h"
+#include "socket_win_utils.h"
+
 #include <stdio.h> // sprintf
 
-static const bool VERBOSE_LOGGING = true;
+extern bool g_verboseLogging;
 
-void IOCPStream::Initialize(connectionId_t connectionId, StreamClosedHandler* pStreamClosedHandler)
+void IOCPStream::Initialize(IOCPConnection* pConnection)
 {
-	m_connectionId = connectionId;
-	m_pStreamClosedHandler = pStreamClosedHandler;
+	m_pConnection = pConnection;
 }
 
 void IOCPStream::OnSocketAccept(SOCKET socket)
@@ -17,27 +19,29 @@ void IOCPStream::OnSocketAccept(SOCKET socket)
 	ClearBuffers();
 }
 
-void IOCPStream::IssueReset()
+void IOCPStream::OnIocpError()
 {
-	m_pStreamClosedHandler->OnStreamClosed();
+	m_pConnection->Reset();
 }
 
 void IOCPStream::LogInfo(const char* msg)
 {
-	if (VERBOSE_LOGGING)
+	if (g_verboseLogging)
 	{
-		printf("INFO: Connection %d - Thread Id - %d - %s\n", m_connectionId, GetCurrentThreadId(), msg);
+		printf("INFO: Connection %d - Thread %d - %s\n", m_pConnection->GetConnectionId(), GetCurrentThreadId(), msg);
 	}
 }
 
 void IOCPStream::LogError(const char* msg)
 {
-	printf("ERROR: Connection %d - Thread Id - %d - %s\n", m_connectionId, GetCurrentThreadId(), msg);
+	printf("ERROR: Connection %d - Thread %d - %s\n", m_pConnection->GetConnectionId(), GetCurrentThreadId(), msg);
 }
 
 void IOCPStream::LogError(const char* msg, int errorCode)
 {
+	char errorCodeString[64];
+	MapWsaErrorCodeToString(errorCode, errorCodeString, ARRAYSIZE(errorCodeString));
 	char formattedMsg[256];
-	sprintf_s(formattedMsg, "%s: Error code %d", msg, errorCode);
+	sprintf_s(formattedMsg, "%s: %s", msg, errorCodeString);
 	LogError(formattedMsg);
 }

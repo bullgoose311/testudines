@@ -16,13 +16,12 @@
 
 #pragma comment(lib,"ws2_32")   // Standard socket API
 
-#define MAX_WORKER_THREADS			1
-#define MAX_CONCURRENT_CONNECTIONS	16
+#define MAX_WORKER_THREADS			16
+#define MAX_CONCURRENT_CONNECTIONS	1024
 
-static const char* DEFAULT_PORT					= "51983";
+static const char* DEFAULT_PORT	= "51983";
 
 static DWORD WINAPI ConnectionWorkerThread(LPVOID context);
-static DWORD WINAPI MessageQueueWorkerThread(LPVOID context);
 static void LogInfo(const char* msg);
 static void LogError(const char* msg);
 static void LogError(const char* msg, int errorCode);
@@ -260,8 +259,8 @@ DWORD WINAPI ConnectionWorkerThread(LPVOID context)
 					- socket was likely forcibly closed
 				*/
 
-				// TODO: What to do here?
-				// pPacketHandler->IssueReset();
+				// TODO: What do we actually want to happen here...we don't want a call to DisconnectEx() I don't think
+				pPacketHandler->OnIocpError();
 			}
 			else
 			{

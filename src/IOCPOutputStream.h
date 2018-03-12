@@ -10,7 +10,6 @@ public:
 	IOCPOutputStream();
 
 	// IOCPStream
-	virtual void Initialize(connectionId_t connectionId, StreamClosedHandler* pStreamClosedHandler) override;
 	virtual void OnIocpCompletionPacket(DWORD bytesTransferred) override;
 
 	bool Write(const char* msg, messageSize_t size);

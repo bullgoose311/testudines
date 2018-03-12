@@ -12,5 +12,7 @@ class IOCPPacketHandler : public OVERLAPPED
 {
 public:
 	IOCPPacketHandler();
+
 	virtual void OnIocpCompletionPacket(DWORD bytesTransferred) = 0;
+	virtual void OnIocpError() = 0;
 };

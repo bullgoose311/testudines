@@ -1,5 +1,6 @@
 #include "IOCPInputStream.h"
 
+#include "IOCPConnection.h"
 #include "message_queue.h"
 
 static const timeout_t QUEUE_TIMEOUT = 1000;
@@ -18,15 +19,15 @@ void IOCPInputStream::OnIocpCompletionPacket(DWORD bytesReceived)
 {
 	if (bytesReceived == 0)
 	{
-		// The client has closed the connection
-		IssueReset();
+		LogInfo("connection closed by client (input)");
+		m_pConnection->Reset();
 		return;
 	}
 
 	if ((m_messageBufferSize + bytesReceived) >= MAX_MESSAGE_SIZE)
 	{
-		LogError("we've reached the max message buffer size, resetting connection");
-		IssueReset();
+		LogError("we've reached the max message buffer size, issuing a disconnect");
+		m_pConnection->Reset();
 		return;
 	}
 
@@ -48,7 +49,7 @@ void IOCPInputStream::OnIocpCompletionPacket(DWORD bytesReceived)
 			// char msg[256];
 			// sprintf_s(msg, "Connection %d: Received request %d", m_connectionId, m_requestId);
 			// printf("INFO: %s\n", msg);
-			g_incomingMessageQueue.enqueue(m_connectionId, m_requestId, m_messageBuffer, m_messageBufferSize, QUEUE_TIMEOUT);
+			g_incomingMessageQueue.enqueue(m_pConnection->GetConnectionId(), m_requestId, m_messageBuffer, m_messageBufferSize, QUEUE_TIMEOUT);
 			ClearMessageBuffer();
 			m_requestId++;
 			i += MESSAGE_DELIMITER_SIZE;
@@ -78,7 +79,7 @@ void IOCPInputStream::ClearMessageBuffer()
 
 void IOCPInputStream::IssueRecv()
 {
-	LogInfo("ISSUE RECV");
+	// LogInfo("ISSUE RECV");
 
 	ClearSocketBuffer();
 
@@ -91,7 +92,7 @@ void IOCPInputStream::IssueRecv()
 	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
 	{
 		LogError("WSARecv failed", WSAGetLastError());
-		IssueReset();
+		m_pConnection->Reset();
 	}
 }
 
