@@ -10,11 +10,14 @@ IOCPOutputStream::IOCPOutputStream() : IOCPStream()
 
 void IOCPOutputStream::OnIocpCompletionPacket(DWORD bytesSent)
 {
+	if (!m_pConnection->IsConnected())
+	{
+		return;
+	}
+
 	if (bytesSent == 0)
 	{
-		// The client has closed the connection
-		LogInfo("connection closed by client (output)");
-		m_pConnection->Reset();
+		LogError("unexpectedly sent 0 bytes");
 		return;
 	}
 
@@ -57,6 +60,11 @@ void IOCPOutputStream::OnIocpCompletionPacket(DWORD bytesSent)
 
 bool IOCPOutputStream::Write(const char* msg, messageSize_t size)
 {
+	if (!m_pConnection->IsConnected())
+	{
+		return false;
+	}
+
 	if (size > MAX_MESSAGE_SIZE)
 	{
 		LogError("Invalid message size");
@@ -106,9 +114,9 @@ void IOCPOutputStream::IssueSend()
 	wsabuf.len = (DWORD)m_outgoingMsgBufferSize;
 	DWORD bytesSent = 0;
 	int result = WSASend(m_socket, &wsabuf, 1, &bytesSent, 0, this, nullptr);
-	if (result == SOCKET_ERROR && WSAGetLastError() != ERROR_IO_PENDING)
+	int errorCode = WSAGetLastError();
+	if (result == SOCKET_ERROR && errorCode != ERROR_IO_PENDING)
 	{
-		// TODO: What to do when send fails?  Force disconnect?  Retry?
 		LogError("WSASend failed", WSAGetLastError());
 		m_pConnection->Reset();
 	}

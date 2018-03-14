@@ -17,6 +17,7 @@ enum
 enum class IOCPConnectionState_e
 {
 	AWAITING_ACCEPT,
+	CONNECTED,
 	AWAITING_DISCONNECT
 };
 
@@ -30,9 +31,11 @@ public:
 	// In the case where disconnect fails, we know that the socket is know good and can attempt another accept
 
 	bool Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP);
+	void InitializeSocket();
 	void Reset();
 	connectionId_t GetConnectionId() { return m_connectionId; }
 	IOCPOutputStream* GetOutputStream() { return &m_outputStream; }
+	bool IsConnected() { return m_state == IOCPConnectionState_e::CONNECTED; }
 
 	// IOCPPacketHandler
 	virtual void OnIocpCompletionPacket(DWORD bytesTransferred) override;

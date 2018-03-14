@@ -17,9 +17,21 @@ void IOCPInputStream::OnSocketAccept(SOCKET socket)
 
 void IOCPInputStream::OnIocpCompletionPacket(DWORD bytesReceived)
 {
+	if (!m_pConnection->IsConnected())
+	{
+		return;
+	}
+
 	if (bytesReceived == 0)
 	{
-		LogInfo("connection closed by client (input)");
+		LogInfo("connection cleanly closed by client");
+		m_pConnection->Reset();
+		return;
+	}
+
+	if (bytesReceived < 0)
+	{
+		LogError("connection unexpectedly closed");
 		m_pConnection->Reset();
 		return;
 	}

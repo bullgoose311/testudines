@@ -37,12 +37,7 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 	m_inputStream.Initialize(this);
 	m_outputStream.Initialize(this);
 
-	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
-	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
-	It lets a socket descriptor be reused for a new connection via a special call to DisconnectEx. This means that a server that deals
-	with many short-lived connections can utilize a pool of allocated sockets without incurring the cost of creating new descriptors all
-	the time. */
-	m_socket = WSASocketW(PF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
+	InitializeSocket();
 
 	HANDLE iocp = CreateIoCompletionPort((HANDLE)m_socket, m_hIOCP, COMPLETION_KEY_IO, 0);
 	if (iocp != m_hIOCP)
@@ -58,6 +53,20 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 	return true;
 }
 
+void IOCPConnection::InitializeSocket()
+{
+	/* People familiar with the standard accept API may be confused by the fact that a client socket is created prior to the call to AcceptEx,
+	so let me explain. AcceptEx requires that the client socket be created up-front, but this minor annoyance has a payoff in the end:
+	It lets a socket descriptor be reused for a new connection via a special call to DisconnectEx. This means that a server that deals
+	with many short-lived connections can utilize a pool of allocated sockets without incurring the cost of creating new descriptors all
+	the time. */
+	m_socket = WSASocketW(PF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
+	if (m_socket == SOCKET_ERROR)
+	{
+		LogError("failed to initialize socket", WSAGetLastError());
+	}
+}
+
 void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 {
 	switch (m_state)
@@ -67,6 +76,9 @@ void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 		break;
 	case IOCPConnectionState_e::AWAITING_DISCONNECT:
 		CompleteDisconnect();
+		break;
+	default:
+		LogError("received and IOCP packet when we weren't expecting to");
 		break;
 	}
 }
@@ -84,7 +96,7 @@ void IOCPConnection::Reset()
 
 void IOCPConnection::IssueAccept()
 {
-	// LogInfo("ISSUE ACCEPT");
+	LogInfo("ISSUE ACCEPT");
 
 	ZeroMemory(&m_addrBlock, ACCEPT_ADDR_LENGTH * 2);
 
@@ -100,7 +112,7 @@ void IOCPConnection::IssueAccept()
 
 void IOCPConnection::CompleteAccept()
 {
-	// LogInfo("COMPLETE ACCEPT");
+	LogInfo("COMPLETE ACCEPT");
 
 	/* When the AcceptEx function returns, the socket sAcceptSocket is in the default state for a connected socket.  The socket sAcceptSocket
 	does not inherit the properties of the socket associated with sListenSocket parameter until SO_UPDATE_ACCEPT_CONTEXT is set on the
@@ -113,6 +125,8 @@ void IOCPConnection::CompleteAccept()
 		LogError("setsockopt failed", WSAGetLastError());
 		return;
 	}
+
+	m_state = IOCPConnectionState_e::CONNECTED;
 
 	m_inputStream.OnSocketAccept(m_socket);
 	m_outputStream.OnSocketAccept(m_socket);
@@ -135,7 +149,8 @@ void IOCPConnection::IssueDisconnect()
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
 		LogError("DisconnectEX failed", WSAGetLastError());
-		IssueAccept();
+		InitializeSocket();
+		// IssueAccept(); ......it's looking like even though the disconnect fails we're still getting an IOCP event???
 	}
 	else
 	{
