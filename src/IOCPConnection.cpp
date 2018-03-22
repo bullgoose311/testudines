@@ -78,7 +78,7 @@ void IOCPConnection::OnIocpCompletionPacket(DWORD bytesTransferred)
 		CompleteDisconnect();
 		break;
 	default:
-		LogError("received and IOCP packet when we weren't expecting to");
+		LogError("connection received an IOCP packet while connected");
 		break;
 	}
 }
@@ -145,16 +145,14 @@ void IOCPConnection::IssueDisconnect()
 		return;
 	}
 
+	m_state = IOCPConnectionState_e::AWAITING_DISCONNECT;
 	bool succeeded = pDisconnectEx(m_socket, this, TF_REUSE_SOCKET, 0);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
 		LogError("DisconnectEX failed", WSAGetLastError());
-		InitializeSocket();
+		// TODO: What to do here?
+		//InitializeSocket();
 		// IssueAccept(); ......it's looking like even though the disconnect fails we're still getting an IOCP event???
-	}
-	else
-	{
-		m_state = IOCPConnectionState_e::AWAITING_DISCONNECT;
 	}
 }
 
