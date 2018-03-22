@@ -2,7 +2,7 @@
 
 #include "IOCPStream.h"
 
-#define OUTGOING_MSG_BUFFER_SIZE 4096 * 10 // 40K per connection?
+#define OUTGOING_MSG_BUFFER_SIZE 4096 * 10 // 40K per connection seems a bit much
 
 class IOCPOutputStream : public IOCPStream
 {

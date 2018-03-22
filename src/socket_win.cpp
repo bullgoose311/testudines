@@ -1,8 +1,3 @@
-// https://www.codeproject.com/Articles/10330/A-simple-IOCP-Server-Client-Class
-// http://www.drdobbs.com/cpp/multithreaded-asynchronous-io-io-comple/201202921?pgno=3
-	// - In this example, the completionKey is just an enum specifying whether the operation was an actual IO operation or a SHUTDOWN command
-	// - Which actually makes sense looking below now, because really our socket context is just that...a socket
-
 #ifdef _win64
 
 #include "socket.h"

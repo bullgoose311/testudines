@@ -13,9 +13,6 @@ void MessageQueue::enqueue(connectionId_t connectionId, requestId_t requestId, c
 {
 	EnterCriticalSection(&m_criticalSection);
 
-	// *********************************************
-	// All connection threads are blocked here, which thread is signaling this one?
-	// *********************************************
 	while (IsFull())
 	{
 		SleepConditionVariableCS(&m_enqueueCvar, &m_criticalSection, INFINITE);

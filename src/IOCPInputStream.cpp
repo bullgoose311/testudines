@@ -4,7 +4,7 @@
 #include "message_queue.h"
 
 static const timeout_t QUEUE_TIMEOUT = 1000;
-static const char MESSAGE_DELIMITER[] = "\r\n"; // This is delimiter used by our test app putty
+static const char MESSAGE_DELIMITER[] = "\r\n";
 static const int MESSAGE_DELIMITER_SIZE = 2;
 
 extern MessageQueue g_incomingMessageQueue;
@@ -58,9 +58,6 @@ void IOCPInputStream::OnIocpCompletionPacket(DWORD bytesReceived)
 
 		if (eof)
 		{
-			// char msg[256];
-			// sprintf_s(msg, "Connection %d: Received request %d", m_connectionId, m_requestId);
-			// printf("INFO: %s\n", msg);
 			g_incomingMessageQueue.enqueue(m_pConnection->GetConnectionId(), m_requestId, m_messageBuffer, m_messageBufferSize, QUEUE_TIMEOUT);
 			ClearMessageBuffer();
 			m_requestId++;

@@ -2,6 +2,9 @@
 
 #include "IOCPPacketHandler.h"
 
+#include "common_defines.h"
+#include "common_types.h"
+
 class IOCPConnection;
 
 class IOCPStream : public IOCPPacketHandler

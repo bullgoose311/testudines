@@ -21,15 +21,6 @@ void IOCPOutputStream::OnIocpCompletionPacket(DWORD bytesSent)
 		return;
 	}
 
-	/*
-	** IOCP Thread
-	- acquire the lock
-	- if the send buffer is empty
-	- bAwaitingBufferFlush = false
-	- else
-	- adjust the buffer based on the number of bytes sent and issue another send to IOCP
-	*/
-
 	{
 		SCOPED_CRITICAL_SECTION(&m_lock);
 
@@ -71,17 +62,6 @@ bool IOCPOutputStream::Write(const char* msg, messageSize_t size)
 		return false;
 	}
 
-	/*
-	** HTTP Thread
-	- acquire the lock
-	- Buffer the data and block if the buffer is full // Note buffer can't be bigger than IOCP buffer
-	- if (bAwaitingBufferFlush)
-	- return and let the IOCP thread handle it
-	- else
-	- issue send to IOCP
-	- bAwaitingBufferFlush = true
-	*/
-
 	{
 		SCOPED_CRITICAL_SECTION(&m_lock);
 
@@ -93,10 +73,6 @@ bool IOCPOutputStream::Write(const char* msg, messageSize_t size)
 
 		strncat_s(m_outgoingMsgBuffer, OUTGOING_MSG_BUFFER_SIZE, msg, size);
 		m_outgoingMsgBufferSize += size;
-
-		// TODO: We should keep track of whether or not we're connected, that way if someone calls a write()
-		// when we know we're disconnected then we won't actually write to IOCP.
-		// Next step, what do we really want to do when send() fails?
 
 		if (!m_bAwaitingIOCP)
 		{

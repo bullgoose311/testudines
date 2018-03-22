@@ -27,9 +27,6 @@ public:
 	IOCPConnection() : IOCPPacketHandler() {}
 	~IOCPConnection();
 
-	// TODO: NEXT step, we should always attempt the disconnect no matter what happened.
-	// In the case where disconnect fails, we know that the socket is know good and can attempt another accept
-
 	bool Initialize(connectionId_t connectionId, SOCKET listenSocket, HANDLE hIOCP);
 	void InitializeSocket();
 	void Reset();

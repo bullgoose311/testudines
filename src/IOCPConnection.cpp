@@ -121,7 +121,7 @@ void IOCPConnection::CompleteAccept()
 	int result = setsockopt(m_socket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (char*)&m_listenSocket, sizeof(SOCKET));
 	if (result == SOCKET_ERROR)
 	{
-		// TODO: What to do when this fails?  Why is setsockopt failing the second time around we try to use it after we fail to send() or recv()?
+		// TODO: What do we do when this fails?
 		LogError("setsockopt failed", WSAGetLastError());
 		return;
 	}
@@ -149,10 +149,8 @@ void IOCPConnection::IssueDisconnect()
 	bool succeeded = pDisconnectEx(m_socket, this, TF_REUSE_SOCKET, 0);
 	if (!succeeded && WSAGetLastError() != ERROR_IO_PENDING)
 	{
+		// TODO: What to do when this fails?
 		LogError("DisconnectEX failed", WSAGetLastError());
-		// TODO: What to do here?
-		//InitializeSocket();
-		// IssueAccept(); ......it's looking like even though the disconnect fails we're still getting an IOCP event???
 	}
 }
 

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "common_defines.h"
-#include "common_types.h"
-#include "semaphore.h"
-
 #include <winsock2.h>
 
 #define MAX_SOCKET_BUFFER_SIZE 1024
