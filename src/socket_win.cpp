@@ -11,20 +11,20 @@
 
 #pragma comment(lib,"ws2_32")   // Standard socket API
 
-#define MAX_WORKER_THREADS			16
+#define MAX_IOCP_WORKER_THREADS	16
 #define MAX_CONCURRENT_CONNECTIONS	1024
 
 static const char* DEFAULT_PORT	= "51983";
 
-static DWORD WINAPI ConnectionWorkerThread(LPVOID context);
+static DWORD WINAPI IocpWorkerThread(LPVOID context);
 static void LogInfo(const char* msg);
 static void LogError(const char* msg);
 static void LogError(const char* msg, int errorCode);
 static void Cleanup();
 
 static SOCKET				s_listenSocket = INVALID_SOCKET;
-static HANDLE				s_httpWorkerThreadHandles[MAX_WORKER_THREADS];
-static DWORD				s_httpWorkerThreadCount;
+static HANDLE				s_iocpWorkerThreadHandles[MAX_IOCP_WORKER_THREADS];
+static DWORD				s_iocpWorkerThreadCount;
 static HANDLE				s_hIOCP = INVALID_HANDLE_VALUE;
 static IOCPConnection		s_connections[MAX_CONCURRENT_CONNECTIONS];
 
@@ -47,23 +47,23 @@ bool Sockets_Init()
 		return false;
 	}
 
-	// Initialize connection thread pool
-	for (int i = 0; i < MAX_WORKER_THREADS; i++)
+	// Initialize IOCP worker threads
+	for (int i = 0; i < MAX_IOCP_WORKER_THREADS; i++)
 	{
-		s_httpWorkerThreadHandles[i] = INVALID_HANDLE_VALUE;
+		s_iocpWorkerThreadHandles[i] = INVALID_HANDLE_VALUE;
 	}
 	SYSTEM_INFO systemInfo;
 	GetSystemInfo(&systemInfo);
-	s_httpWorkerThreadCount = systemInfo.dwNumberOfProcessors * 2;
-	if (s_httpWorkerThreadCount > MAX_WORKER_THREADS)
+	s_iocpWorkerThreadCount = systemInfo.dwNumberOfProcessors * 2;
+	if (s_iocpWorkerThreadCount > MAX_IOCP_WORKER_THREADS)
 	{
-		s_httpWorkerThreadCount = MAX_WORKER_THREADS;
+		s_iocpWorkerThreadCount = MAX_IOCP_WORKER_THREADS;
 	}
-	for (DWORD dwCpu = 0; dwCpu < s_httpWorkerThreadCount; dwCpu++)
+	for (DWORD dwCpu = 0; dwCpu < s_iocpWorkerThreadCount; dwCpu++)
 	{
 		HANDLE hThread = INVALID_HANDLE_VALUE;
 		DWORD dwThreadId = 0; // We're just tossing this, should we use it elsewhere?
-		hThread = CreateThread(NULL, 0, ConnectionWorkerThread, s_hIOCP, 0, &dwThreadId);
+		hThread = CreateThread(NULL, 0, IocpWorkerThread, s_hIOCP, 0, &dwThreadId);
 		if (hThread == NULL)
 		{
 			LogError("Failed to create thread");
@@ -71,7 +71,7 @@ bool Sockets_Init()
 			return false;
 		}
 
-		s_httpWorkerThreadHandles[dwCpu] = hThread;
+		s_iocpWorkerThreadHandles[dwCpu] = hThread;
 		hThread = INVALID_HANDLE_VALUE;
 	}
 
@@ -172,16 +172,16 @@ void Sockets_Shutdown()
 
 void Cleanup()
 {
-	// Stop connection worker threads
-	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
+	// Stop iocp worker threads
+	for (size_t i = 0; i < s_iocpWorkerThreadCount; i++)
 	{
 		PostQueuedCompletionStatus(s_hIOCP, 0, COMPLETION_KEY_SHUTDOWN, 0);
 	}
-	LogInfo("Waiting for connection threads to terminate...");
-	WaitForMultipleObjects(s_httpWorkerThreadCount, s_httpWorkerThreadHandles, TRUE, INFINITE);
-	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
+	LogInfo("Waiting for iocp threads to terminate...");
+	WaitForMultipleObjects(s_iocpWorkerThreadCount, s_iocpWorkerThreadHandles, TRUE, INFINITE);
+	for (size_t i = 0; i < s_iocpWorkerThreadCount; i++)
 	{
-		CloseHandle(s_httpWorkerThreadHandles[i]);
+		CloseHandle(s_iocpWorkerThreadHandles[i]);
 	}
 
 	// Close listen socket
@@ -194,7 +194,7 @@ void Cleanup()
 	WSACleanup();
 }
 
-DWORD WINAPI ConnectionWorkerThread(LPVOID context)
+DWORD WINAPI IocpWorkerThread(LPVOID context)
 {
 	HANDLE hIOCP = (HANDLE)context;
 	
