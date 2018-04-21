@@ -1,0 +1,12 @@
+﻿  IOCPConnection.cpp
+  IOCPInputStream.cpp
+  IOCPOutputStream.cpp
+  IOCPPacketHandler.cpp
+  IOCPStream.cpp
+  socket_win.cpp
+  Generating code
+  0 of 80 functions ( 0.0%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  Testudines.vcxproj -> C:\Development\Testudines\x64\Release_win64\Testudines.exe

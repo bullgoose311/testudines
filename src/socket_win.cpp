@@ -4,6 +4,7 @@
 
 #include "common_utils.h"
 #include "IOCPConnection.h"
+#include "log.h"
 #include "message_queue.h"
 
 #include <ws2tcpip.h>
@@ -17,9 +18,6 @@
 static const char* DEFAULT_PORT	= "51983";
 
 static DWORD WINAPI IocpWorkerThread(LPVOID context);
-static void LogInfo(const char* msg);
-static void LogError(const char* msg);
-static void LogError(const char* msg, int errorCode);
 static void Cleanup();
 
 static SOCKET				s_listenSocket = INVALID_SOCKET;
@@ -35,7 +33,7 @@ bool Sockets_Init()
 	int iResult = WSAStartup(MAKEWORD(2, 2), &s_wsaData);
 	if (iResult != 0)
 	{
-		LogError("WSAStartup failed", iResult);
+		Log_PrintError("WSAStartup failed", iResult);
 		return false;
 	}
 
@@ -66,7 +64,7 @@ bool Sockets_Init()
 		hThread = CreateThread(NULL, 0, IocpWorkerThread, s_hIOCP, 0, &dwThreadId);
 		if (hThread == NULL)
 		{
-			LogError("Failed to create thread");
+			Log_PrintError("Failed to create thread");
 			Cleanup();
 			return false;
 		}
@@ -86,7 +84,7 @@ bool Sockets_Init()
 	iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
 	if (iResult != 0)
 	{
-		printf("getaddrinfo failed: %d\n", iResult);
+		Log_PrintError("getaddrinfo failed: %d", iResult);
 		Cleanup();
 		return false;
 	}
@@ -94,7 +92,7 @@ bool Sockets_Init()
 	s_listenSocket = WSASocketW(result->ai_family, result->ai_socktype, result->ai_protocol, NULL, 0, WSA_FLAG_OVERLAPPED);
 	if (s_listenSocket == INVALID_SOCKET)
 	{
-		LogError("WSASocketW failed", WSAGetLastError());
+		Log_PrintError("WSASocketW failed", WSAGetLastError());
 		freeaddrinfo(result);
 		Cleanup();
 		return false;
@@ -103,7 +101,7 @@ bool Sockets_Init()
 	iResult = bind(s_listenSocket, result->ai_addr, (int)result->ai_addrlen);
 	if (iResult == SOCKET_ERROR)
 	{
-		LogError("bind failed", WSAGetLastError());
+		Log_PrintError("bind failed: %d", WSAGetLastError());
 		freeaddrinfo(result);
 		Cleanup();
 		return false;
@@ -114,7 +112,7 @@ bool Sockets_Init()
 	iResult = listen(s_listenSocket, SOMAXCONN);
 	if (iResult == SOCKET_ERROR)
 	{
-		LogError("listen failed", WSAGetLastError());
+		Log_PrintError("listen failed: %d", WSAGetLastError());
 		Cleanup();
 		return false;
 	}
@@ -122,7 +120,7 @@ bool Sockets_Init()
 	// Associate listen socket with IOCP
 	if (CreateIoCompletionPort((HANDLE)s_listenSocket, s_hIOCP, COMPLETION_KEY_IO, 0) != s_hIOCP)
 	{
-		LogError("failed to associate listen socket with iocp");
+		Log_PrintError("failed to associate listen socket with iocp");
 		Cleanup();
 		return false;
 	}
@@ -143,7 +141,7 @@ bool Sockets_Init()
 	{
 		if (!s_connections[i].Initialize(i, s_listenSocket, s_hIOCP))
 		{
-			LogError("Failed to initialize connection");
+			Log_PrintError("Failed to initialize connection");
 			Cleanup();
 			return false;
 		}
@@ -177,7 +175,7 @@ void Cleanup()
 	{
 		PostQueuedCompletionStatus(s_hIOCP, 0, COMPLETION_KEY_SHUTDOWN, 0);
 	}
-	LogInfo("Waiting for iocp threads to terminate...");
+	Log_PrintInfo("Waiting for iocp threads to terminate...");
 	WaitForMultipleObjects(s_iocpWorkerThreadCount, s_iocpWorkerThreadHandles, TRUE, INFINITE);
 	for (size_t i = 0; i < s_iocpWorkerThreadCount; i++)
 	{
@@ -230,17 +228,13 @@ DWORD WINAPI IocpWorkerThread(LPVOID context)
 			else if (completionKey == COMPLETION_KEY_SHUTDOWN)
 			{
 				// Allow the thread to terminate
-				char msg[256] = { 0 };
-				sprintf_s(msg, "Connection thread %d shutting down", GetCurrentThreadId());
-				LogInfo(msg);
+				Log_PrintInfo("Connection thread %d shutting down", GetCurrentThreadId());
 				break;
 			}
 			else
 			{
 				// Something's wrong
-				char msg[256] = { 0 };
-				sprintf_s(msg, "Thread %d got an invalid completion key, exiting", GetCurrentThreadId());
-				LogError(msg);
+				Log_PrintError("Thread %d got an invalid completion key, exiting", GetCurrentThreadId());
 				break;
 			}
 		}
@@ -272,23 +266,6 @@ DWORD WINAPI IocpWorkerThread(LPVOID context)
 	}
 
 	return 0;
-}
-
-void LogInfo(const char* msg)
-{
-	printf("INFO: %s\n", msg);
-}
-
-void LogError(const char* msg)
-{
-	printf("ERROR: %s\n", msg);
-}
-
-void LogError(const char* msg, int errorCode)
-{
-	char formattedMsg[256];
-	sprintf_s(formattedMsg, "%s, error code %d", msg, errorCode);
-	LogError(formattedMsg);
 }
 
 #endif

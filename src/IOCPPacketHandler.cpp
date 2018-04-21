@@ -1,3 +1,5 @@
+#ifdef _win64
+
 #include "IOCPPacketHandler.h"
 
 IOCPPacketHandler::IOCPPacketHandler()
@@ -9,3 +11,5 @@ IOCPPacketHandler::IOCPPacketHandler()
 	OffsetHigh = 0;
 	hEvent = NULL;
 }
+
+#endif // #ifdef _win64

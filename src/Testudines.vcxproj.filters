@@ -16,6 +16,12 @@
     <Filter Include="threads">
       <UniqueIdentifier>{497ec43b-fa02-4a46-a958-cddcdf9571e6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="logging">
+      <UniqueIdentifier>{39b0ecfb-2968-42d9-b2a5-cbf368b271dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sockets\iocp">
+      <UniqueIdentifier>{eb04e071-3a41-4b48-8bf9-1ae9e24c25bf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="os_linux.cpp">
@@ -31,9 +37,6 @@
       <Filter>sockets</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="IOCPConnection.cpp">
-      <Filter>sockets</Filter>
-    </ClCompile>
     <ClCompile Include="http_win.cpp">
       <Filter>http</Filter>
     </ClCompile>
@@ -43,20 +46,38 @@
     <ClCompile Include="message_queue_win.cpp">
       <Filter>messages</Filter>
     </ClCompile>
-    <ClCompile Include="IOCPPacketHandler.cpp">
-      <Filter>sockets</Filter>
-    </ClCompile>
-    <ClCompile Include="IOCPStream.cpp">
-      <Filter>sockets</Filter>
-    </ClCompile>
-    <ClCompile Include="IOCPInputStream.cpp">
-      <Filter>sockets</Filter>
-    </ClCompile>
-    <ClCompile Include="IOCPOutputStream.cpp">
-      <Filter>sockets</Filter>
-    </ClCompile>
     <ClCompile Include="socket_win_utils.cpp">
       <Filter>sockets</Filter>
+    </ClCompile>
+    <ClCompile Include="log_win.cpp">
+      <Filter>logging</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPConnection.cpp">
+      <Filter>sockets\iocp</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPInputStream.cpp">
+      <Filter>sockets\iocp</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPOutputStream.cpp">
+      <Filter>sockets\iocp</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPPacketHandler.cpp">
+      <Filter>sockets\iocp</Filter>
+    </ClCompile>
+    <ClCompile Include="IOCPStream.cpp">
+      <Filter>sockets\iocp</Filter>
+    </ClCompile>
+    <ClCompile Include="message_queue_linux.cpp">
+      <Filter>messages</Filter>
+    </ClCompile>
+    <ClCompile Include="semaphore_linux.cpp">
+      <Filter>threads</Filter>
+    </ClCompile>
+    <ClCompile Include="log_linux.cpp">
+      <Filter>logging</Filter>
+    </ClCompile>
+    <ClCompile Include="http_linux.cpp">
+      <Filter>http</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -64,9 +85,6 @@
       <Filter>os</Filter>
     </ClInclude>
     <ClInclude Include="socket.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="IOCPConnection.h">
       <Filter>sockets</Filter>
     </ClInclude>
     <ClInclude Include="common_defines.h" />
@@ -84,20 +102,32 @@
       <Filter>threads</Filter>
     </ClInclude>
     <ClInclude Include="common_utils.h" />
-    <ClInclude Include="IOCPPacketHandler.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="IOCPStream.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="IOCPInputStream.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
-    <ClInclude Include="IOCPOutputStream.h">
-      <Filter>sockets</Filter>
-    </ClInclude>
     <ClInclude Include="socket_win_utils.h">
       <Filter>sockets</Filter>
+    </ClInclude>
+    <ClInclude Include="log.h">
+      <Filter>logging</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPConnection.h">
+      <Filter>sockets\iocp</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPInputStream.h">
+      <Filter>sockets\iocp</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPOutputStream.h">
+      <Filter>sockets\iocp</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPPacketHandler.h">
+      <Filter>sockets\iocp</Filter>
+    </ClInclude>
+    <ClInclude Include="IOCPStream.h">
+      <Filter>sockets\iocp</Filter>
+    </ClInclude>
+    <ClInclude Include="semaphore_win.h">
+      <Filter>threads</Filter>
+    </ClInclude>
+    <ClInclude Include="semaphore_linux.h">
+      <Filter>threads</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

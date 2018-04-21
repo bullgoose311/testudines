@@ -1,15 +1,15 @@
 #ifdef _win64
 
-#include "semaphore.h"
+#include "semaphore_win.h"
 
-Semaphore::Semaphore(unsigned int max) : MAX(max), m_currentCount(0)
+WinSemaphore::WinSemaphore(unsigned int max) : MAX(max), m_currentCount(0)
 {
 	InitializeConditionVariable(&m_waitCvar);
 	InitializeConditionVariable(&m_signalCvar);
 	InitializeCriticalSection(&m_criticalSection);
 }
 
-void Semaphore::Wait()
+void WinSemaphore::Wait()
 {
 	EnterCriticalSection(&m_criticalSection);
 
@@ -25,7 +25,7 @@ void Semaphore::Wait()
 	WakeConditionVariable(&m_signalCvar);
 }
 
-void Semaphore::Signal()
+void WinSemaphore::Signal()
 {
 	EnterCriticalSection(&m_criticalSection);
 

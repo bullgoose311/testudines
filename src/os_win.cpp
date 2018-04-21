@@ -1,13 +1,15 @@
 #ifdef _win64
 
 #include "os.h"
+
+#include "log.h"
 #include "semaphore.h"
 
 #include <iostream> // getch
 #include <windows.h>
 #include <wincon.h>
 
-extern Semaphore g_shutdownSemaphore;
+extern Semaphore* g_shutdownSemaphore;
 
 BOOL WINAPI CtrlHandler(DWORD dwEvent);
 
@@ -29,7 +31,7 @@ void OS_Shutdown()
 		// TODO: Need error handling
 	}
 
-	printf("Application has finished, press enter to exit...\n");
+	Log_PrintInfo("Application has finished, press enter to exit...");
 	getchar();
 }
 
@@ -39,7 +41,7 @@ BOOL WINAPI CtrlHandler(DWORD dwEvent)
 	{
 	case CTRL_C_EVENT:      // Falls through..
 	case CTRL_CLOSE_EVENT:
-		g_shutdownSemaphore.Signal();
+		g_shutdownSemaphore->Signal();
 		return true;
 	default:
 		return false;

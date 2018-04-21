@@ -1,3 +1,5 @@
+#ifdef _win64
+
 #include "IOCPOutputStream.h"
 
 #include "IOCPConnection.h"
@@ -107,3 +109,5 @@ void IOCPOutputStream::ClearBuffers()
 	ZeroMemory(m_outgoingMsgBuffer, MAX_MESSAGE_SIZE);
 	m_outgoingMsgBufferSize = 0;
 }
+
+#endif // #ifdef _win64

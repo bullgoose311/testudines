@@ -1,7 +1,10 @@
+#ifdef _win64
+
 #include "http.h"
 
 #include "common_defines.h"
 #include "common_utils.h"
+#include "log.h"
 #include "message_queue.h"
 #include "socket.h"
 #include "thread_utils.h"
@@ -12,16 +15,12 @@
 #define MAX_WORKER_THREADS				1
 #define MAX_REQUEST_QUEUE_CAPACITY		1024
 
-extern MessageQueue g_incomingMessageQueue;
-
 static const timeout_t QUEUE_TIMEOUT = 1000;
 
 static HANDLE			s_httpWorkerThreadHandles[MAX_WORKER_THREADS];
 static DWORD			s_httpWorkerThreadCount;
 
 static DWORD WINAPI HttpWorkerThread(LPVOID WorkContext);
-static void LogInfo(const char* msg);
-static void LogError(const char* msg);
 static void Cleanup();
 
 bool HTTP_Init()
@@ -47,7 +46,7 @@ bool HTTP_Init()
 		hThread = CreateThread(NULL, 0, HttpWorkerThread, nullptr, 0, &dwThreadId);
 		if (hThread == NULL)
 		{
-			LogError("Failed to create thread");
+			Log_PrintError("Failed to create thread");
 			Cleanup();
 			return false;
 		}
@@ -69,13 +68,11 @@ DWORD WINAPI HttpWorkerThread(LPVOID context)
 	while (true)
 	{
 		message_s message;
-		g_incomingMessageQueue.dequeue(message, QUEUE_TIMEOUT);
+		Messages_Dequeue(message, QUEUE_TIMEOUT);
 
 		if (message.connectionId == QUIT_CONNECTION_ID)
 		{
-			char msg[256] = { 0 };
-			sprintf_s(msg, "HTTP worker thread %d shutting down", GetCurrentThreadId());
-			LogInfo(msg);
+			Log_PrintInfo("HTTP worker thread %d shutting down", GetCurrentThreadId());
 			break;
 		}
 
@@ -86,33 +83,21 @@ DWORD WINAPI HttpWorkerThread(LPVOID context)
 		// TODO: Do we want to block the HTTP thread in the case that the outgoing message buffer is full?
 		if (!Sockets_Write(message.connectionId, responseBuffer, responseMsgSize))
 		{
-			char msg[256];
-			sprintf_s(msg, "Unable to write response for request %d on connection %d", message.requestId, message.connectionId);
-			LogError(msg);
+			Log_PrintError("Unable to write response for request %d on connection %d", message.requestId, message.connectionId);
 		}
 	}
 
 	return 0;
 }
 
-void LogInfo(const char* msg)
-{
-	printf("INFO: %s\n", msg);
-}
-
-void LogError(const char* msg)
-{
-	printf("ERROR: %s\n", msg);
-}
-
 void Cleanup()
 {
 	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
 	{
-		g_incomingMessageQueue.enqueue(QUIT_CONNECTION_ID, 0, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
+		Messages_Enqueue(QUIT_CONNECTION_ID, 0, "", 0, MESSAGE_QUEUE_TIMEOUT_INFINITE);
 	}
 
-	LogInfo("Waiting for http worker threads to terminate...");
+	Log_PrintInfo("Waiting for http worker threads to terminate...");
 	WaitForMultipleObjects(s_httpWorkerThreadCount, s_httpWorkerThreadHandles, true, INFINITE);
 
 	for (size_t i = 0; i < s_httpWorkerThreadCount; i++)
@@ -120,3 +105,5 @@ void Cleanup()
 		CloseHandle(s_httpWorkerThreadHandles[i]);
 	}
 }
+
+#endif // #ifdef _win64

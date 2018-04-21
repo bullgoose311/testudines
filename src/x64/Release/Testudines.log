@@ -1,0 +1,18 @@
+﻿  http_win.cpp
+  IOCPConnection.cpp
+  IOCPInputStream.cpp
+  IOCPOutputStream.cpp
+  IOCPPacketHandler.cpp
+  IOCPStream.cpp
+  main.cpp
+  message_queue_win.cpp
+  os_linux.cpp
+  os_win.cpp
+  semaphore_win.cpp
+  socket_linux.cpp
+  socket_win.cpp
+  socket_win_utils.cpp
+  Generating code
+  All 82 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  Testudines.vcxproj -> C:\Development\Testudines\x64\Release\Testudines.exe

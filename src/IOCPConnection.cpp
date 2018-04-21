@@ -1,9 +1,12 @@
-#include "common_defines.h"
+#ifdef _win64
+
 #include "IOCPConnection.h"
+
+#include "common_defines.h"
+#include "log.h"
 #include "socket_win_utils.h"
 
 #include <mswsock.h> // AcceptEx
-#include <stdio.h> // sprintf
 
 #pragma comment(lib,"mswsock")
 
@@ -42,7 +45,7 @@ bool IOCPConnection::Initialize(connectionId_t connectionId, SOCKET listenSocket
 	HANDLE iocp = CreateIoCompletionPort((HANDLE)m_socket, m_hIOCP, COMPLETION_KEY_IO, 0);
 	if (iocp != m_hIOCP)
 	{
-		char msg[256];
+		char msg[32];
 		sprintf_s(msg, "Failed to add connection %d to IOCP", m_connectionId);
 		LogError(msg);
 		return false;
@@ -161,22 +164,22 @@ void IOCPConnection::CompleteDisconnect()
 
 void IOCPConnection::LogError(const char* msg)
 {
-	printf("ERROR: Connection %d - Thread %d - %s\n", m_connectionId, GetCurrentThreadId(), msg);
+	Log_PrintError("Connection %d - Thread %d - %s", m_connectionId, GetCurrentThreadId(), msg);
 }
 
 void IOCPConnection::LogError(const char* msg, int errorCode)
 {
 	char errorCodeString[64];
 	MapWsaErrorCodeToString(errorCode, errorCodeString, ARRAYSIZE(errorCodeString));
-	char formattedMsg[256];
-	sprintf_s(formattedMsg, "%s: %s", msg, errorCodeString);
-	LogError(formattedMsg);
+	Log_PrintError("%s: %s", msg, errorCodeString);
 }
 
 void IOCPConnection::LogInfo(const char* msg)
 {
 	if (g_verboseLogging)
 	{
-		printf("INFO: Connection %d - Thread %d - %s\n", m_connectionId, GetCurrentThreadId(), msg);
+		Log_PrintInfo("Connection %d - Thread %d - %s", m_connectionId, GetCurrentThreadId(), msg);
 	}
 }
+
+#endif // #ifdef _win64

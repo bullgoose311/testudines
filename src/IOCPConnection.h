@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef _win64
+
 #include "common_defines.h"
 #include "common_types.h"
 #include "IOCPInputStream.h"
@@ -58,3 +60,5 @@ private:
 	void LogError(const char* msg, int errorCode);
 	void LogInfo(const char* msg);
 };
+
+#endif // #ifdef _win64

@@ -15,33 +15,7 @@ struct message_s
 	requestId_t		requestId;
 };
 
-#ifdef _win64
+bool Messages_Enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout);
 
-#include <windows.h>
-
-class MessageQueue
-{
-public:
-	MessageQueue();
-
-	void enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout);
-	void dequeue(message_s& message, timeout_t timeout);
-
-private:
-	message_s	m_messages[MESSAGE_QUEUE_CAPACITY];
-	size_t		m_queueSize = 0;
-	size_t		m_queueFront = 0;
-	size_t		m_queueBack = MESSAGE_QUEUE_CAPACITY - 1;
-	CRITICAL_SECTION m_criticalSection;
-	CONDITION_VARIABLE m_enqueueCvar;
-	CONDITION_VARIABLE m_dequeueCvar;
-
-	bool IsFull() { return m_queueSize == MESSAGE_QUEUE_CAPACITY; }
-	bool IsEmpty() { return m_queueSize == 0; }
-};
-
-#else
-
-	// TODO: Linux message queue interface goes here...
-
-#endif // #ifdef _win64
+// TODO: This API leaks implementation details as implementations are expected to block until a message is ready
+bool Messages_Dequeue(message_s& message, timeout_t timeout);

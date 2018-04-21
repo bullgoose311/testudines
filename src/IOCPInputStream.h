@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef _win64
+
 #include "IOCPStream.h"
 
 class IOCPInputStream : public IOCPStream
@@ -22,3 +24,5 @@ private:
 	void IssueRecv();
 	void ClearSocketBuffer();
 };
+
+#endif // #ifdef _win64

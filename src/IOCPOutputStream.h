@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef _win64
+
 #include "IOCPStream.h"
 
 #define OUTGOING_MSG_BUFFER_SIZE 4096 * 10 // 40K per connection seems a bit much
@@ -25,3 +27,5 @@ private:
 
 	void IssueSend();
 };
+
+#endif // #ifdef _win64

@@ -1,3 +1,5 @@
+#ifdef _win64
+
 #include "IOCPInputStream.h"
 
 #include "IOCPConnection.h"
@@ -6,8 +8,6 @@
 static const timeout_t QUEUE_TIMEOUT = 1000;
 static const char MESSAGE_DELIMITER[] = "\r\n";
 static const int MESSAGE_DELIMITER_SIZE = 2;
-
-extern MessageQueue g_incomingMessageQueue;
 
 void IOCPInputStream::OnSocketAccept(SOCKET socket)
 {
@@ -58,7 +58,7 @@ void IOCPInputStream::OnIocpCompletionPacket(DWORD bytesReceived)
 
 		if (eof)
 		{
-			g_incomingMessageQueue.enqueue(m_pConnection->GetConnectionId(), m_requestId, m_messageBuffer, m_messageBufferSize, QUEUE_TIMEOUT);
+			Messages_Enqueue(m_pConnection->GetConnectionId(), m_requestId, m_messageBuffer, m_messageBufferSize, QUEUE_TIMEOUT);
 			ClearMessageBuffer();
 			m_requestId++;
 			i += MESSAGE_DELIMITER_SIZE;
@@ -109,3 +109,5 @@ void IOCPInputStream::ClearSocketBuffer()
 {
 	ZeroMemory(m_socketBuffer, MAX_SOCKET_BUFFER_SIZE);
 }
+
+#endif // #ifdef _win64

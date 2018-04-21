@@ -1,5 +1,7 @@
 #pragma once
 
+#ifdef _win64
+
 #include "IOCPPacketHandler.h"
 
 #include "common_defines.h"
@@ -30,3 +32,5 @@ protected:
 
 	virtual void ClearBuffers() = 0;
 };
+
+#endif // #ifdef _win64

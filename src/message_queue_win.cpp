@@ -2,6 +2,29 @@
 
 #include "message_queue.h"
 
+#include <windows.h>
+
+class MessageQueue
+{
+public:
+	MessageQueue();
+
+	void enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout);
+	void dequeue(message_s& message, timeout_t timeout);
+
+private:
+	message_s	m_messages[MESSAGE_QUEUE_CAPACITY];
+	size_t		m_queueSize = 0;
+	size_t		m_queueFront = 0;
+	size_t		m_queueBack = MESSAGE_QUEUE_CAPACITY - 1;
+	CRITICAL_SECTION m_criticalSection;
+	CONDITION_VARIABLE m_enqueueCvar;
+	CONDITION_VARIABLE m_dequeueCvar;
+
+	bool IsFull() { return m_queueSize == MESSAGE_QUEUE_CAPACITY; }
+	bool IsEmpty() { return m_queueSize == 0; }
+};
+
 MessageQueue::MessageQueue()
 {
 	InitializeCriticalSection(&m_criticalSection);
@@ -52,6 +75,23 @@ void MessageQueue::dequeue(message_s& message, timeout_t timeout)
 	LeaveCriticalSection(&m_criticalSection);
 
 	WakeConditionVariable(&m_enqueueCvar);
+}
+
+// NOTE: I had originally thought that implementing a class for each platform was best,
+// but that doesn't work because defining the private interface may use platform specific types.
+// Therefore this is leftover from the previous implementation but no longer needs to be a class
+static MessageQueue	s_incomingMessageQueue;
+
+bool Messages_Enqueue(connectionId_t connectionId, requestId_t requestId, const char* contents, size_t length, timeout_t timeout)
+{
+	s_incomingMessageQueue.enqueue(connectionId, requestId, contents, length, timeout);
+	return true;
+}
+
+bool Messages_Dequeue(message_s& message, timeout_t timeout)
+{
+	s_incomingMessageQueue.dequeue(message, timeout);
+	return true;
 }
 
 #endif // #ifdef _win64
